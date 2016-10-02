@@ -1,6 +1,6 @@
 
 LDFLAGS= -lc -lgcc -lbsd
-CFLAGS= -fPIC
+CFLAGS= -fPIC -g
 
 PLEDGE_OBJECTS = pledge.o
 

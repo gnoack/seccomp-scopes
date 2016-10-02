@@ -8,5 +8,6 @@ int main(int argc, char* argv[]) {
     errx(1, "Could not pledge.");
   }
 
-  printf("i am doing something evil\n");
+  printf("i am going to open a file bwahaha\n");
+  fopen("/etc/passwd", "r");
 }

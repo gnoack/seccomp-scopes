@@ -9,7 +9,7 @@
 #include <elf.h>
 
 #include <asm/unistd.h>
-#include <bsd/stdlib.h>
+#include <bsd/stdlib.h>  /* reallocarray */
 
 #include <errno.h>
 #include <signal.h>
@@ -65,7 +65,7 @@ struct sock_filter filter_appendix[] = {
   _RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW),
   // otherwise, break
-  _RET(SECCOMP_RET_KILL),
+  _RET(SECCOMP_RET_TRAP),
 };
 
 
