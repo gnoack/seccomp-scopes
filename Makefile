@@ -8,9 +8,6 @@ pledge.so: $(PLEDGE_OBJECTS)
 	$(LD) -shared -o $@ $^
 
 clean:
-	rm -f *.o *.so *~ main
+	rm -f *.o *.so *~
 
 .PHONY: clean
-
-main: main.o pledge.o
-	$(CC) -o $@ $(LDFLAGS) $^

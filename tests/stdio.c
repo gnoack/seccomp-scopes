@@ -6,14 +6,13 @@
 
 int main(int argc, char* argv[]) {
   if (pledge("stdio", NULL) == -1) {
-    errx(1, "Could not pledge.");
+    errx(1, "Could not pledge: BROKEN");
   }
 
-  printf("Printing should work.\n");
+  // This message is a test in itself.
+  printf("Writing to stdout: OK\n");
 
-  // Allocate and free some space to try memory management.
   char* x = malloc(2000 * 1024 * 20);
   free(x);
-
-  printf("DONE :)\n");
+  printf("Allocating and freeing memory: OK\n");
 }

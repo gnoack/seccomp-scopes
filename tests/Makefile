@@ -11,11 +11,15 @@ rpath: rpath.o $(PLEDGE_LIB)
 wpath: wpath.o $(PLEDGE_LIB)
 	$(CC) -o $@ $(LDFLAGS) $^
 
-TEST_BINARIES = rpath wpath
+stdio: stdio.o $(PLEDGE_LIB)
+	$(CC) -o $@ $(LDFLAGS) $^
+
+TEST_BINARIES = rpath wpath stdio
 
 test: $(TEST_BINARIES)
 	./rpath
 	./wpath
+	./stdio
 
 clean:
 	rm -rf *.o *.so *~ $(TEST_BINARIES)

@@ -43,10 +43,7 @@
 
 #define _LD_ARCH() _LD_STRUCT_VALUE(arch)
 #define _LD_NR() _LD_STRUCT_VALUE(nr)
-
-#define _LD_ARG(n)                                                      \
-  BPF_STMT(BPF_LD+BPF_W+BPF_ABS,                                        \
-           offsetof(struct seccomp_data, args) + (n * sizeof(__u64)))
+#define _LD_ARG(n) _LD_STRUCT_VALUE(args[n])
 
 #define _RET_EQ(value, result) \
   _JEQ((value), 0, 1),         \
@@ -106,7 +103,7 @@ struct sock_filter stdio_filter[] = {
 // Opening paths read-only
 struct sock_filter rpath_filter[] = {
   _JEQ(__NR_open, 0, 4),                 // skip 4 if acc != __NR_open
-  // TODO: Is argument 1 actually the mode argument?
+  // TODO: Is this actually the mode argument?
   _LD_ARG(1),                            // acc := 'mode' argument
   _RET_EQ(O_RDONLY, SECCOMP_RET_ALLOW),  // allow if readonly mode (2 instr)
   _LD_NR(),                              // acc := syscall number
@@ -115,9 +112,10 @@ struct sock_filter rpath_filter[] = {
 
 // Opening paths write-only
 // TODO: Make sure this can't create files.
+// TODO: This one doesn't work.
 struct sock_filter wpath_filter[] = {
   _JEQ(__NR_open, 0, 4),                 // skip 4 if acc != __NR_open
-  // TODO: Is argument 1 actually the mode argument?
+  // TODO: Is this actually the mode argument?
   _LD_ARG(1),                            // acc := 'mode' argument
   _RET_EQ(O_WRONLY, SECCOMP_RET_ALLOW),  // allow if writeonly mode (2 instr)
   _LD_NR(),                              // acc := syscall number
