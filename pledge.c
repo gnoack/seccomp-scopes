@@ -9,7 +9,7 @@
 #include <elf.h>
 
 #include <asm/unistd.h>
-#include <bsd/stdlib.h>
+#include <bsd/stdlib.h>  /* reallocarray */
 
 #include <errno.h>
 #include <signal.h>
@@ -67,15 +67,29 @@ struct sock_filter filter_appendix[] = {
   _RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW),
   // otherwise, break
-  _RET(SECCOMP_RET_KILL),
+  _RET(SECCOMP_RET_TRAP),
 };
 
 
 struct sock_filter stdio_filter[] = {
+  // Memory allocation
+  _RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_mmap,           SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW),
+  // Reading and writing
+  _RET_EQ(__NR_read,           SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_readv,          SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_pread64,        SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_preadv,         SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_preadv2,        SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_write,          SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_writev,         SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_pwrite64,       SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_pwritev,        SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_pwritev2,       SECCOMP_RET_ALLOW),
+  // Stuff
   _RET_EQ(__NR_fstat,          SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_close,          SECCOMP_RET_ALLOW),
 };
 
