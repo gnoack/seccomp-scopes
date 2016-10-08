@@ -56,7 +56,6 @@
 
 struct sock_filter filter_prelude[] = {
   // break on architecture mismatch
-  // TODO(gnoack): Arch checking is broken!! :(
   _LD_ARCH(),
   _RET_NEQ(ARCH_NR,        SECCOMP_RET_KILL),
   // load the syscall number
@@ -103,7 +102,6 @@ struct sock_filter stdio_filter[] = {
 // Opening paths read-only
 struct sock_filter rpath_filter[] = {
   _JEQ(__NR_open, 0, 4),                 // skip 4 if acc != __NR_open
-  // TODO: Is this actually the mode argument?
   _LD_ARG(1),                            // acc := 'mode' argument
   _RET_EQ(O_RDONLY, SECCOMP_RET_ALLOW),  // allow if readonly mode (2 instr)
   _LD_NR(),                              // acc := syscall number
@@ -112,11 +110,12 @@ struct sock_filter rpath_filter[] = {
 
 // Opening paths write-only
 // TODO: Make sure this can't create files.
-// TODO: This one doesn't work.
 struct sock_filter wpath_filter[] = {
   _JEQ(__NR_open, 0, 4),                 // skip 4 if acc != __NR_open
-  // TODO: Is this actually the mode argument?
   _LD_ARG(1),                            // acc := 'mode' argument
+  // TODO: for fopen(..., "w"), arg1 is 0x241.
+  // That is O_EXCL (0x200) | ??? (0x40) | O_WRONLY (0x1).
+  // Compare /usr/include/asm{,-generic}/fcntl.h
   _RET_EQ(O_WRONLY, SECCOMP_RET_ALLOW),  // allow if writeonly mode (2 instr)
   _LD_NR(),                              // acc := syscall number
 };

@@ -2,24 +2,24 @@
 LDFLAGS= -lc -lgcc -lbsd
 CFLAGS= -fPIC -g
 
-PLEDGE_LIB = ../pledge.o
+LIBS = ../pledge.o testlib.o
 CFLAGS += -I..
 
-rpath: rpath.o $(PLEDGE_LIB)
+rpath: rpath.o $(LIBS)
 	$(CC) -o $@ $(LDFLAGS) $^
 
-wpath: wpath.o $(PLEDGE_LIB)
+wpath: wpath.o $(LIBS)
 	$(CC) -o $@ $(LDFLAGS) $^
 
-stdio: stdio.o $(PLEDGE_LIB)
+stdio: stdio.o $(LIBS)
 	$(CC) -o $@ $(LDFLAGS) $^
 
 TEST_BINARIES = rpath wpath stdio
 
 test: $(TEST_BINARIES)
+	./stdio
 	./rpath
 	./wpath
-	./stdio
 
 clean:
 	rm -rf *.o *.so *~ $(TEST_BINARIES)
