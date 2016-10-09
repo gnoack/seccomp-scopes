@@ -82,6 +82,7 @@ struct sock_filter stdio_filter[] = {
   _RET_EQ(__NR_mmap2,          SECCOMP_RET_ALLOW),
 #endif  // __NR_mmap2
   _RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_madvise,        SECCOMP_RET_ALLOW),
   // Reading and writing
   _RET_EQ(__NR_read,           SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_readv,          SECCOMP_RET_ALLOW),

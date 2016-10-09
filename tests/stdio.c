@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <err.h>
 
 #include "pledge.h"
@@ -14,6 +15,12 @@ void test_alloc_and_free() {
   free(x);
 }
 
+void test_madvise() {
+  char* x = malloc(10);
+  madvise(x, 10, MADV_RANDOM);
+  free(x);
+}
+
 int main(int argc, char* argv[]) {
   init_test(argc, argv);
 
@@ -22,4 +29,7 @@ int main(int argc, char* argv[]) {
 
   expect_ok("stdio", test_alloc_and_free);
   expect_crash("", test_alloc_and_free);
+
+  expect_ok("stdio", test_madvise);
+  expect_crash("", test_madvise);
 }
