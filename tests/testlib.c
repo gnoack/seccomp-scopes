@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#include <ctype.h>
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,11 +22,25 @@ static const char* current_test_name = NULL;
 static const char* current_test_promises = NULL;
 
 static void failmsg(const char* msg) {
-  puts("***********************************");
+  puts("****************");
+  puts(" F A I L U R E");
+  puts("****************");
   puts(msg);
-  puts("### Debug with");
-  printf("### gdb -ex \"run %s '%s'\" %s\n",
-         current_test_name, current_test_promises, argv0);
+
+  printf("Debug? (Y/n) ");
+  fflush(stdout);
+  int c = fgetc(stdin);
+  if (c != EOF && tolower(c) == 'y') {
+    char* gdb_cmd = NULL;
+    if (asprintf(&gdb_cmd, "run %s '%s'",
+                 current_test_name, current_test_promises) == -1) {
+      errx(1, "asprintf failed");
+    }
+    if (execl("/usr/bin/gdb", "gdb", "-ex", gdb_cmd, argv0, NULL) == -1) {
+      free(gdb_cmd);
+      errx(1, "Can't start gdb");
+    }
+  }
   exit(1);
 }
 
@@ -98,12 +114,10 @@ static void expect_crash_status(int status) {
 }
 
 void do_expect_ok(const char* name, const char* promises, test_proc proc) {
-  puts("# Expecting OK");
   fork_pledge_wait(name, promises, proc, expect_ok_status);
 }
 
 void do_expect_crash(const char* name, const char* promises, test_proc proc) {
-  puts("# Expecting crash");
   fork_pledge_wait(name, promises, proc, expect_crash_status);
 }
 
