@@ -110,6 +110,9 @@ struct sock_filter stdio_filter[] = {
 
 // Opening paths read-only
 struct sock_filter rpath_filter[] = {
+  _RET_EQ(__NR_chdir, SECCOMP_RET_ALLOW),
+  // Open when it's in read-only mode.
+  // TODO: Permit more flag combinations.
   _JEQ(__NR_open, 0, 4),                 // skip 4 if acc != __NR_open
   _LD_ARG(1),                            // acc := 'mode' argument
   _RET_EQ(O_RDONLY, SECCOMP_RET_ALLOW),  // allow if readonly mode (2 instr)
@@ -131,6 +134,24 @@ struct sock_filter wpath_filter[] = {
   // TODO: This is also creating files.
   _RET_EQ(O_WRONLY|O_CREAT|O_TRUNC, SECCOMP_RET_ALLOW),  // allow if writeonly mode (2 instr)
   _LD_NR(),                              // acc := syscall number
+};
+
+
+// File creation stuff
+struct sock_filter cpath_filter[] = {
+  _RET_EQ(__NR_creat,     SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_mkdirat,   SECCOMP_RET_ALLOW),
+};
+
+// Internet
+struct sock_filter inet_filter[] = {
+  _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_accept4,   SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_bind,      SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_connect,   SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_listen,    SECCOMP_RET_ALLOW),
+  // socketcall(2) is not used any more in modern glibc versions.
 };
 
 
@@ -162,6 +183,10 @@ static int fill_filter(const char* promises, struct sock_fprog* prog) {
       APPEND_FILTER(prog, rpath_filter);
     } else if (!strcmp(item, "wpath")) {
       APPEND_FILTER(prog, wpath_filter);
+    } else if (!strcmp(item, "cpath")) {
+      APPEND_FILTER(prog, cpath_filter);
+    } else if (!strcmp(item, "inet")) {
+      APPEND_FILTER(prog, inet_filter);
     } else {
       free(promises_copy);
       errno = EINVAL;
