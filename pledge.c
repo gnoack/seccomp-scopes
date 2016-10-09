@@ -78,7 +78,9 @@ struct sock_filter stdio_filter[] = {
 #ifdef __NR_mmap
   _RET_EQ(__NR_mmap,           SECCOMP_RET_ALLOW),
 #endif  // __NR_mmap
+#ifdef __NR_mmap2
   _RET_EQ(__NR_mmap2,          SECCOMP_RET_ALLOW),
+#endif  // __NR_mmap2
   _RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW),
   // Reading and writing
   _RET_EQ(__NR_read,           SECCOMP_RET_ALLOW),
@@ -93,7 +95,9 @@ struct sock_filter stdio_filter[] = {
   _RET_EQ(__NR_pwritev2,       SECCOMP_RET_ALLOW),
   // Stuff
   _RET_EQ(__NR_fstat,          SECCOMP_RET_ALLOW),
+#ifdef __NR_fstat64
   _RET_EQ(__NR_fstat64,        SECCOMP_RET_ALLOW),
+#endif  // __NR_fstat64
   _RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_close,          SECCOMP_RET_ALLOW),
 };
@@ -116,7 +120,11 @@ struct sock_filter wpath_filter[] = {
   // TODO: for fopen(..., "w"), arg1 is 0x241.
   // That is O_EXCL (0x200) | ??? (0x40) | O_WRONLY (0x1).
   // Compare /usr/include/asm{,-generic}/fcntl.h
-  _RET_EQ(O_WRONLY, SECCOMP_RET_ALLOW),  // allow if writeonly mode (2 instr)
+  // Compare http://osxr.org:8080/glibc/source/libio/fileops.c#0266
+  // omode = O_WRONLY, oflags = O_CREAT|O_TRUNC
+  // mode := omode | oflags
+  // TODO: This is also creating files.
+  _RET_EQ(O_WRONLY|O_CREAT|O_TRUNC, SECCOMP_RET_ALLOW),  // allow if writeonly mode (2 instr)
   _LD_NR(),                              // acc := syscall number
 };
 
