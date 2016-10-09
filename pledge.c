@@ -117,9 +117,9 @@ struct sock_filter rpath_filter[] = {
 struct sock_filter wpath_filter[] = {
   _JEQ(__NR_open, 0, 4),                 // skip 4 if acc != __NR_open
   _LD_ARG(1),                            // acc := 'mode' argument
-  // TODO: for fopen(..., "w"), arg1 is 0x241.
-  // That is O_EXCL (0x200) | ??? (0x40) | O_WRONLY (0x1).
-  // Compare /usr/include/asm{,-generic}/fcntl.h
+  // Note: for fopen(..., "w"), arg1 is 0x241 == 01101 octal.
+  // That is O_TRUNC (01000) | O_CREAT (0100) | O_WRONLY (01).
+  // Compare /usr/include/asm{,-generic}/fcntl.h (careful: octal!)
   // Compare http://osxr.org:8080/glibc/source/libio/fileops.c#0266
   // omode = O_WRONLY, oflags = O_CREAT|O_TRUNC
   // mode := omode | oflags
