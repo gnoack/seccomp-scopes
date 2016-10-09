@@ -21,6 +21,13 @@ void test_madvise() {
   free(x);
 }
 
+void test_time() {
+  struct timeval time = {};
+  gettimeofday(&time, NULL);
+
+  // TODO: Test clock_gettimeofday().
+}
+
 int main(int argc, char* argv[]) {
   init_test(argc, argv);
 
@@ -32,4 +39,7 @@ int main(int argc, char* argv[]) {
 
   expect_ok("stdio", test_madvise);
   expect_crash("", test_madvise);
+
+  expect_ok("stdio", test_time);
+  expect_crash("", test_time);
 }

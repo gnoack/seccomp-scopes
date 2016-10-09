@@ -99,7 +99,10 @@ struct sock_filter stdio_filter[] = {
 #ifdef __NR_fstat64
   _RET_EQ(__NR_fstat64,        SECCOMP_RET_ALLOW),
 #endif  // __NR_fstat64
+  // Time
   _RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_gettimeofday,   SECCOMP_RET_ALLOW),
+  // Closing file descriptors
   _RET_EQ(__NR_close,          SECCOMP_RET_ALLOW),
 };
 
