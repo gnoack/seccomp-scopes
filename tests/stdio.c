@@ -52,9 +52,13 @@ int main(int argc, char* argv[]) {
   expect_ok("stdio", test_madvise);
   expect_crash("", test_madvise);
 
-  expect_ok("stdio", test_gettimeofday);
-  expect_crash("", test_gettimeofday);
+  // Gettimeofday is permitted.
+  // This is not actually entering kernel mode on x86-64,
+  // so we can't catch it there anyway and also shouldn't
+  // make a difference between this and other architectures.
+  expect_ok("", test_gettimeofday);
 
+  // TODO: Above reasoning should probably apply here too (see vdso(7)).
   expect_ok("stdio", test_clock_gettime);
   expect_crash("", test_clock_gettime);
 }

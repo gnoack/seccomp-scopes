@@ -67,10 +67,11 @@ struct sock_filter filter_appendix[] = {
   // exit and exit_group are always allowed
   _RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW),
+  // gettimeofday usually gets called through vdso(7)
+  _RET_EQ(__NR_gettimeofday,   SECCOMP_RET_ALLOW),
   // otherwise, break
   _RET(SECCOMP_RET_TRAP),
 };
-
 
 struct sock_filter stdio_filter[] = {
   // Memory allocation
@@ -102,7 +103,6 @@ struct sock_filter stdio_filter[] = {
   // Time
   _RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_clock_getres,   SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_gettimeofday,   SECCOMP_RET_ALLOW),
   // Closing file descriptors
   _RET_EQ(__NR_close,          SECCOMP_RET_ALLOW),
 };
