@@ -1,0 +1,14 @@
+
+open(), openat() access modes:
+  O_RDONLY enabled by SCOPE_RPATH
+  O_WRONLY enabled by SCOPE_WPATH
+  O_RDWR   enabled by (SCOPE_RPATH and SCOPE_WPATH)
+
+  O_CREAT  enabled by SCOPE_CPATH
+
+  other flags that are often set:
+  O_APPEND and O_TRUNC: Controlling writing mode
+  O_ASYNC: for signal-driven I/O
+  O_CLOEXEC: close-on-exec, same permissions as close() (none)
+  O_DIRECT: Disable caching (needs O_SYNC)
+  O_EXCL: enforce create (needs O_CREAT, so requires SCOPE_CPATH)
