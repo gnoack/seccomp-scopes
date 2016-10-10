@@ -54,7 +54,7 @@
   _RET((result))
 
 
-struct sock_filter filter_prelude[] = {
+struct sock_filter filter_prefix[] = {
   // break on architecture mismatch
   _LD_ARCH(),
   _RET_NEQ(ARCH_NR,        SECCOMP_RET_KILL),
@@ -63,7 +63,7 @@ struct sock_filter filter_prelude[] = {
 };
 
 
-struct sock_filter filter_appendix[] = {
+struct sock_filter filter_suffix[] = {
   // exit and exit_group are always allowed
   _RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW),
@@ -72,6 +72,15 @@ struct sock_filter filter_appendix[] = {
   // otherwise, break
   _RET(SECCOMP_RET_TRAP),
 };
+
+
+/* Flags for the individual promise scopes. */
+#define SCOPE_STDIO 0x00000001
+#define SCOPE_RPATH 0x00000002
+#define SCOPE_WPATH 0x00000004
+#define SCOPE_CPATH 0x00000008
+#define SCOPE_INET  0x00000010
+
 
 struct sock_filter stdio_filter[] = {
   // Memory allocation
@@ -137,12 +146,14 @@ struct sock_filter wpath_filter[] = {
 };
 
 
+
 // File creation stuff
 struct sock_filter cpath_filter[] = {
   _RET_EQ(__NR_creat,     SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_mkdirat,   SECCOMP_RET_ALLOW),
 };
+
 
 // Internet
 struct sock_filter inet_filter[] = {
@@ -155,21 +166,10 @@ struct sock_filter inet_filter[] = {
 };
 
 
-void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t filter_size) {
-  size_t old_size = prog->len;
-  prog->len += filter_size;
-  prog->filter = reallocarray(prog->filter, sizeof(prog->filter[0]), prog->len);
-  memcpy(prog->filter + old_size, filter, filter_size * sizeof(filter[0]));
-}
+/* Write OR'd SCOPE_* values to scope_flags, or returns -1. */
+static int parse_promises(const char* promises, unsigned int* scope_flags) {
+  unsigned int flags = 0;
 
-
-#define APPEND_FILTER(prog, filter) append_filter(prog, filter, sizeof(filter)/sizeof(filter[0]))
-
-
-static int fill_filter(const char* promises, struct sock_fprog* prog) {
-  APPEND_FILTER(prog, filter_prelude);
-
-  // Split promises string into items.
   char* promises_copy = strdup(promises);
   char* strtok_arg0 = promises_copy;
   char* saveptr = NULL;
@@ -177,25 +177,59 @@ static int fill_filter(const char* promises, struct sock_fprog* prog) {
   while ((item = strtok_r(strtok_arg0, " ", &saveptr))) {
     strtok_arg0 = NULL;
 
+    // TODO: This could be a lookup map.
     if (!strcmp(item, "stdio")) {
-      APPEND_FILTER(prog, stdio_filter);
+      flags |= SCOPE_STDIO;
     } else if (!strcmp(item, "rpath")) {
-      APPEND_FILTER(prog, rpath_filter);
+      flags |= SCOPE_RPATH;
     } else if (!strcmp(item, "wpath")) {
-      APPEND_FILTER(prog, wpath_filter);
+      flags |= SCOPE_WPATH;
     } else if (!strcmp(item, "cpath")) {
-      APPEND_FILTER(prog, cpath_filter);
+      flags |= SCOPE_CPATH;
     } else if (!strcmp(item, "inet")) {
-      APPEND_FILTER(prog, inet_filter);
+      flags |= SCOPE_INET;
     } else {
-      free(promises_copy);
       errno = EINVAL;
+      free(promises_copy);
       return -1;
     }
   }
-  APPEND_FILTER(prog, filter_appendix);
+  *scope_flags = flags;
   free(promises_copy);
   return 0;
+
+}
+
+void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t filter_size) {
+  size_t old_size = prog->len;
+  prog->len += filter_size;
+  prog->filter = reallocarray(prog->filter, sizeof(prog->filter[0]), prog->len);
+  memcpy(prog->filter + old_size, filter, filter_size * sizeof(filter[0]));
+}
+
+#define APPEND_FILTER(prog, filter) \
+  append_filter(prog, filter, sizeof(filter)/sizeof(filter[0]))
+
+static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
+  APPEND_FILTER(prog, filter_prefix);
+
+  if (scopes & SCOPE_STDIO) {
+    APPEND_FILTER(prog, stdio_filter);
+  }
+  if (scopes & SCOPE_RPATH) {
+    APPEND_FILTER(prog, rpath_filter);
+  }
+  if (scopes & SCOPE_WPATH) {
+    APPEND_FILTER(prog, wpath_filter);
+  }
+  if (scopes & SCOPE_CPATH) {
+    APPEND_FILTER(prog, cpath_filter);
+  }
+  if (scopes & SCOPE_INET) {
+    APPEND_FILTER(prog, inet_filter);
+  }
+
+  APPEND_FILTER(prog, filter_suffix);
 }
 
 
@@ -206,15 +240,18 @@ int pledge(const char* promises, const char* paths[]) {
   };
 
   if (paths) {
-    // We don't support paths on Linux,
+    // We don't support passing paths on Linux,
     // the argument purely exists for OpenBSD compatibility
     // and in the hope this will be fixed in the kernel. :)
     return E2BIG;
   }
 
-  if (fill_filter(promises, &prog) == -1) {
+  unsigned int scopes = 0;
+  if (parse_promises(promises, &scopes) == -1) {
+    errno = EINVAL;  // TODO: this is a bad error code.
     goto cleanup;
   }
+  fill_filter(scopes, &prog);
 
   // Actually enable this.
   if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
