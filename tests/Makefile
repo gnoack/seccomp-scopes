@@ -5,21 +5,17 @@ CFLAGS= -fPIC -g
 LIBS = ../pledge.o testlib.o
 CFLAGS += -I..
 
-rpath: rpath.o $(LIBS)
-	$(CC) -o $@ $(LDFLAGS) $^
-
-wpath: wpath.o $(LIBS)
+paths: paths.o $(LIBS)
 	$(CC) -o $@ $(LDFLAGS) $^
 
 stdio: stdio.o $(LIBS)
 	$(CC) -o $@ $(LDFLAGS) $^
 
-TEST_BINARIES = rpath wpath stdio
+TEST_BINARIES = paths stdio
 
 test: $(TEST_BINARIES)
+	./paths
 	./stdio
-	./rpath
-	./wpath
 
 clean:
 	rm -rf *.o *.so *~ $(TEST_BINARIES)
