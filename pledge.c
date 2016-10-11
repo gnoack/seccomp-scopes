@@ -12,7 +12,7 @@
 #include <bsd/stdlib.h>  /* reallocarray */
 
 #include <errno.h>
-#include <fcntl.h>  /* O_RDONLY */
+#include <fcntl.h>  /* open() flags */
 #include <signal.h>
 #include <stdarg.h>
 #include <stddef.h>  /* for offsetof */
@@ -33,13 +33,14 @@
 #endif
 
 #define _LD_STRUCT_VALUE(field)                                         \
-  BPF_STMT(BPF_LD+BPF_W+BPF_ABS, offsetof(struct seccomp_data, field))
+  BPF_STMT(BPF_LD+BPF_W+BPF_ABS,                                        \
+           offsetof(struct seccomp_data, field))
 
-#define _JEQ(value, jt, jf)                             \
-  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), jt, jf)
-
-#define _RET(value) \
-  BPF_STMT(BPF_RET+BPF_K, (value))
+#define _JMP(j)              BPF_STMT(BPF_JMP+BPF_JA+BPF_K,  (j))
+#define _JEQ(value, jt, jf)  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), (jt), (jf))
+#define _RET(value)          BPF_STMT(BPF_RET+BPF_K,         (value))
+#define _OR(value)           BPF_STMT(BPF_ALU+BPF_OR+BPF_K,  (value))
+#define _AND(value)          BPF_STMT(BPF_ALU+BPF_AND+BPF_K, (value))
 
 #define _LD_ARCH() _LD_STRUCT_VALUE(arch)
 #define _LD_NR() _LD_STRUCT_VALUE(nr)
@@ -120,29 +121,11 @@ struct sock_filter stdio_filter[] = {
 // Opening paths read-only
 struct sock_filter rpath_filter[] = {
   _RET_EQ(__NR_chdir, SECCOMP_RET_ALLOW),
-  // Open when it's in read-only mode.
-  // TODO: Permit more flag combinations.
-  _JEQ(__NR_open, 0, 4),                 // skip 4 if acc != __NR_open
-  _LD_ARG(1),                            // acc := 'mode' argument
-  _RET_EQ(O_RDONLY, SECCOMP_RET_ALLOW),  // allow if readonly mode (2 instr)
-  _LD_NR(),                              // acc := syscall number
 };
 
 
 // Opening paths write-only
-// TODO: Make sure this can't create files.
 struct sock_filter wpath_filter[] = {
-  _JEQ(__NR_open, 0, 4),                 // skip 4 if acc != __NR_open
-  _LD_ARG(1),                            // acc := 'mode' argument
-  // Note: for fopen(..., "w"), arg1 is 0x241 == 01101 octal.
-  // That is O_TRUNC (01000) | O_CREAT (0100) | O_WRONLY (01).
-  // Compare /usr/include/asm{,-generic}/fcntl.h (careful: octal!)
-  // Compare http://osxr.org:8080/glibc/source/libio/fileops.c#0266
-  // omode = O_WRONLY, oflags = O_CREAT|O_TRUNC
-  // mode := omode | oflags
-  // TODO: This is also creating files.
-  _RET_EQ(O_WRONLY|O_CREAT|O_TRUNC, SECCOMP_RET_ALLOW),  // allow if writeonly mode (2 instr)
-  _LD_NR(),                              // acc := syscall number
 };
 
 
@@ -156,6 +139,7 @@ struct sock_filter cpath_filter[] = {
 
 
 // Internet
+// TODO: This does not restrict well enough.
 struct sock_filter inet_filter[] = {
   _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_accept4,   SECCOMP_RET_ALLOW),
@@ -210,11 +194,74 @@ void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t f
 #define APPEND_FILTER(prog, filter) \
   append_filter(prog, filter, sizeof(filter)/sizeof(filter[0]))
 
+static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
+  int may_read = scopes & SCOPE_RPATH;
+  int may_write = scopes & SCOPE_WPATH;
+  int may_rdwr = may_read && may_write;
+  int may_create = scopes & SCOPE_CPATH;
+
+  // We are first checking the access mode (can be masked),
+  // then the other flags in the same open() argument.
+  //
+  // To avoid recalculating jump targets, depending on the pledged
+  // promises, some access mode comparisons are comparing to
+  // O_ACCMODE+1, which is not possible. Pseudocode:
+  //
+  // access_mode = flags & O_ACCMODE;
+  // if (access_mode == O_RDONLY ||
+  //     access_mode == O_ACCMODE+1 ||  /* can't happen */
+  //     access_mode == O_ACCMODE+1) {  /* can't happen */
+  //   if ((flags | permitted_open_flags) == permitted_open_flags) {
+  //     return SECCOMP_RET_ALLOW;
+  //   }
+  // }
+  //
+  // The lines marked as "can't happen" may be O_WRONLY and O_RDWR instead.
+  //
+  // We need to calculate the permitted_open_flags ahead of time.
+  // permitted_open_flags includes O_ACCMODE, because that was checked
+  // before already.
+  int permitted_open_flags = O_ACCMODE;
+  if (may_write) {
+    permitted_open_flags |= O_TRUNC | O_APPEND;
+  }
+  if (may_create) {
+    permitted_open_flags |= O_CREAT | O_EXCL;
+#ifdef O_TMPFILE
+    permitted_open_flags |= O_TMPFILE;
+#endif  // O_TMPFILE
+  }
+
+  // Construct the filter
+  struct sock_filter openflags_filter[] = {
+    _JEQ(__NR_open, 0, 10),  // skip 10 if acc != __NR_open
+    // acc := flags & O_ACCMODE
+    _LD_ARG(1),
+    _AND(O_ACCMODE),
+    // Check read/write modes
+    _JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), 2, 0),  // jeq rdonly checkother
+    _JEQ((may_write ? O_WRONLY : O_ACCMODE+1), 1, 0),  // jeq wronly checkother
+    _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, 4),  // jne rdwr   cleanup
+    // checkother:
+    // if ((flags | permitted) == permitted) return SECCOMP_RET_ALLOW;
+    _LD_ARG(1),  // flags
+    _OR(permitted_open_flags),
+    _JEQ(permitted_open_flags, 0, 1),  // skip 1 if not equal
+    _RET(SECCOMP_RET_ALLOW),
+    // cleanup:
+    _LD_NR(),
+  };
+  APPEND_FILTER(prog, openflags_filter);
+}
+
 static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
   APPEND_FILTER(prog, filter_prefix);
 
   if (scopes & SCOPE_STDIO) {
     APPEND_FILTER(prog, stdio_filter);
+  }
+  if (scopes & (SCOPE_RPATH | SCOPE_WPATH | SCOPE_CPATH)) {
+    append_open_filter(scopes, prog);
   }
   if (scopes & SCOPE_RPATH) {
     APPEND_FILTER(prog, rpath_filter);
