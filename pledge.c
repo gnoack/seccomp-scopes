@@ -298,6 +298,7 @@ static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
 
 
 int pledge(const char* promises, const char* paths[]) {
+  int retval = 0;
   struct sock_fprog prog = {
     .len = 0,
     .filter = malloc(0),  // TODO: Error checking.
@@ -307,12 +308,15 @@ int pledge(const char* promises, const char* paths[]) {
     // We don't support passing paths on Linux,
     // the argument purely exists for OpenBSD compatibility
     // and in the hope this will be fixed in the kernel. :)
-    return E2BIG;
+    errno = E2BIG;
+    retval = -1;
+    goto cleanup;
   }
 
   unsigned int scopes = 0;
   if (parse_promises(promises, &scopes) == -1) {
-    errno = EINVAL;  // TODO: this is a bad error code.
+    errno = EINVAL;
+    retval = -1;
     goto cleanup;
   }
   fill_filter(scopes, &prog);
@@ -320,14 +324,16 @@ int pledge(const char* promises, const char* paths[]) {
   // Actually enable this.
   if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
     errno = EPERM;  // TODO: Find better error code.
+    retval = -1;
     goto cleanup;
   }
   if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
     errno = EPERM;
+    retval = -1;
     goto cleanup;
   }
 
  cleanup:
   free(prog.filter);
-  return errno ? -1 : 0;
+  return retval;
 }
