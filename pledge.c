@@ -41,6 +41,8 @@
 #define _RET(value)          BPF_STMT(BPF_RET+BPF_K,         (value))
 #define _OR(value)           BPF_STMT(BPF_ALU+BPF_OR+BPF_K,  (value))
 #define _AND(value)          BPF_STMT(BPF_ALU+BPF_AND+BPF_K, (value))
+#define _SET_X_TO_A()        BPF_STMT(BPF_MISC+BPF_TAX,      0)
+#define _SET_A_TO_X()        BPF_STMT(BPF_MISC+BPF_TXA,      0)
 
 #define _LD_ARCH() _LD_STRUCT_VALUE(arch)
 #define _LD_NR() _LD_STRUCT_VALUE(nr)
@@ -207,6 +209,13 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   // promises, some access mode comparisons are comparing to
   // O_ACCMODE+1, which is not possible. Pseudocode:
   //
+  // if (nr == __NR_openat) {
+  //   flags = arg2;
+  // } else if (nr == __NR_open) {
+  //   flags = arg1;
+  // } else {
+  //   goto exit;
+  // }
   // access_mode = flags & O_ACCMODE;
   // if (access_mode == O_RDONLY ||
   //     access_mode == O_ACCMODE+1 ||  /* can't happen */
@@ -215,6 +224,7 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   //     return SECCOMP_RET_ALLOW;
   //   }
   // }
+  // exit:
   //
   // The lines marked as "can't happen" may be O_WRONLY and O_RDWR instead.
   //
@@ -234,9 +244,16 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
 
   // Construct the filter
   struct sock_filter openflags_filter[] = {
-    _JEQ(__NR_open, 0, 10),  // skip 10 if acc != __NR_open
+    _JEQ(__NR_openat, 0, 2),
+    _LD_ARG(2),  // acc := flags (arg 2)
+    _JMP(2),     // goto entry
+
+    _JEQ(__NR_open, 0, 11),
+    _LD_ARG(1),  // acc := flags (arg 1)
+
+    // entry:
+    _SET_X_TO_A(),  // store X := flags
     // acc := flags & O_ACCMODE
-    _LD_ARG(1),
     _AND(O_ACCMODE),
     // Check read/write modes
     _JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), 2, 0),  // jeq rdonly checkother
@@ -244,7 +261,7 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
     _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, 4),  // jne rdwr   cleanup
     // checkother:
     // if ((flags | permitted) == permitted) return SECCOMP_RET_ALLOW;
-    _LD_ARG(1),  // flags
+    _SET_A_TO_X(),  // flags
     _OR(permitted_open_flags),
     _JEQ(permitted_open_flags, 0, 1),  // skip 1 if not equal
     _RET(SECCOMP_RET_ALLOW),

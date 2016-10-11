@@ -3,5 +3,3 @@ open() flags:
   O_ASYNC: for signal-driven I/O
   O_CLOEXEC: close-on-exec, same permissions as close() (none)
   O_DIRECT: Disable caching (needs O_SYNC)
-
-openat()

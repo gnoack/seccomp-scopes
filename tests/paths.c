@@ -66,6 +66,16 @@ void test_open_rdwr() {
   close(open(".throwaway-test-output", O_RDWR|O_TRUNC));
 }
 
+void test_openat_read() {
+  int dir = open("/dev", O_RDONLY);
+  int fd = openat(dir, "zero", O_RDONLY);
+  if (fd == -1) {
+    puts("Can't open /dev/zero with openat()");
+  };
+  close(fd);
+  close(dir);
+}
+
 void test_open_file_creating() {
   int fd = open(".throwaway-test-output", O_WRONLY|O_CREAT|O_TRUNC);
   if (fd == -1) {
@@ -113,4 +123,7 @@ int main(int argc, char* argv[]) {
   expect_ok("stdio wpath rpath", test_open_rdwr);
   expect_crash("stdio wpath", test_open_rdwr);
   expect_crash("stdio rpath", test_open_rdwr);
+
+  // openat() should work
+  expect_ok("stdio rpath", test_openat_read);
 }

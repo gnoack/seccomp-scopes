@@ -95,7 +95,11 @@ static void fork_pledge_wait(const char* name,
 
 static void expect_ok_status(int status) {
   if (WIFEXITED(status)) {
-    puts("Exited normally: OK");
+    if (WEXITSTATUS(status)) {
+      errx(1, "Subprocess exited with %d status: BROKEN", WEXITSTATUS(status));
+    } else {
+      puts("Exited normally: OK");
+    }
   } else if (WIFSIGNALED(status)) {
     failmsg("Unexpected sandbox violation: FAIL");
   } else {
@@ -105,7 +109,12 @@ static void expect_ok_status(int status) {
 
 static void expect_crash_status(int status) {
   if (WIFEXITED(status)) {
-    failmsg("Program worked but sandbox should have prevented it: FAIL");
+    if (WEXITSTATUS(status)) {
+      printf("Subprocess exited with %d status: FAIL\n", WEXITSTATUS(status));
+      failmsg("Expected sandbox violation, got exit() with error status: FAIL");
+    } else {
+      failmsg("Program worked but sandbox should have prevented it: FAIL");
+    }
   } else if (WIFSIGNALED(status)) {
     puts("Sandbox violation correctly caught: OK");
   } else {
