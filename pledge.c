@@ -140,15 +140,53 @@ struct sock_filter cpath_filter[] = {
 };
 
 
-// Internet
-// TODO: This does not restrict well enough.
+// Internet (IPv4, IPv6)
 struct sock_filter inet_filter[] = {
+  // TODO: This does not restrict well enough.
+  _RET_EQ(__NR_socket,    SECCOMP_RET_ALLOW),
+  // socket(domain, type, protocol)
+  // domain == AF_INET || domain == AF_INET6
+  // type == SOCK_STREAM || type == SOCK_DGRAM
+  // type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
+
   _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW),
+  // accept(socket, *address, *address_len)
+
   _RET_EQ(__NR_accept4,   SECCOMP_RET_ALLOW),
+  // accept4(socket, *address, *address_len, flags)
+  // flags can be SOCK_NONBLOCK, SOCK_CLOEXEC
+
   _RET_EQ(__NR_bind,      SECCOMP_RET_ALLOW),
+  // bind(socket, *address, *address_len)
+
   _RET_EQ(__NR_connect,   SECCOMP_RET_ALLOW),
+  // connect(socket, *address, *address_len)
+
   _RET_EQ(__NR_listen,    SECCOMP_RET_ALLOW),
+  // listen(socket, backlog)
+  // backlog is a hint
+
+  _RET_EQ(__NR_recv,      SECCOMP_RET_ALLOW),
+  // recv(socket, *buf, len, flags)
+
+  _RET_EQ(__NR_send,      SECCOMP_RET_ALLOW),
+  // send(socket, *buf, len, flags)
+
+  _RET_EQ(__NR_recvfrom,  SECCOMP_RET_ALLOW),
+  // recvfrom(socket, *buf, len, flags, *src_addr, *addrlen)
+
+  _RET_EQ(__NR_sendto,    SECCOMP_RET_ALLOW),
+  // sendto(socket, *buf, len, flags, *dest_addr, *addrlen)
+
+  _RET_EQ(__NR_recvmsg,   SECCOMP_RET_ALLOW),
+  // recvmsg(socket, *msg, flags)
+
+  _RET_EQ(__NR_sendmsg,   SECCOMP_RET_ALLOW),
+  // sendmsg(socket, *msg, flags)
+
   // socketcall(2) is not used any more in modern glibc versions.
+
+  // TODO: sendmmsg, setsockopt, getsockopt, socketpair, getpeername
 };
 
 
