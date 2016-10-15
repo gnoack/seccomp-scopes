@@ -10,6 +10,12 @@
  *          most types of IO operations on previously allocated file
  *          descriptors.
  *
+ *   rpath  Permit opening files for reading
+ *
+ *   wpath  Permit opening files for writing
+ *
+ *   cpath  Permit creating files
+ *
  *   inet   The following syscalls are allowed to operate in the AF_INET
  *          and AF_INET6 domains:
  *

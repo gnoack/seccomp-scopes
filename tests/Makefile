@@ -11,9 +11,13 @@ paths: paths.o $(LIBS)
 stdio: stdio.o $(LIBS)
 	$(CC) -o $@ $(LDFLAGS) $^
 
-TEST_BINARIES = paths stdio
+inet: inet.o $(LIBS)
+	$(CC) -o $@ $(LDFLAGS) $^
+
+TEST_BINARIES = paths stdio inet
 
 test: $(TEST_BINARIES)
+	./inet
 	./paths
 	./stdio
 

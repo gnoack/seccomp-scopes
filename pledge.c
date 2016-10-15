@@ -1,5 +1,6 @@
 #include <sys/types.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 #include <sys/prctl.h>
 
 #include <linux/net.h>
@@ -142,12 +143,19 @@ struct sock_filter cpath_filter[] = {
 
 // Internet (IPv4, IPv6)
 struct sock_filter inet_filter[] = {
-  // TODO: This does not restrict well enough.
-  _RET_EQ(__NR_socket,    SECCOMP_RET_ALLOW),
   // socket(domain, type, protocol)
   // domain == AF_INET || domain == AF_INET6
   // type == SOCK_STREAM || type == SOCK_DGRAM
   // type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
+  _JEQ(__NR_socket, 0, 7),  // if (nr != __NR_socket) goto exit
+  _LD_ARG(0),  // domain
+  _JEQ(AF_INET,  1, 0),  // if (domain==AF_INET ||
+  _JEQ(AF_INET6, 0, 3),  //     domain==AF_INET6) {
+  _LD_ARG(1),  // type, TODO: extra flags
+  _RET_EQ(SOCK_STREAM,    SECCOMP_RET_ALLOW),
+  _RET_EQ(SOCK_DGRAM,     SECCOMP_RET_ALLOW),
+  _LD_NR(),
+  // exit:
 
   _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW),
   // accept(socket, *address, *address_len)
