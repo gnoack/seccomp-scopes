@@ -127,7 +127,6 @@ struct sock_filter wpath_filter[] = {
 
 // File creation stuff
 struct sock_filter cpath_filter[] = {
-  _RET_EQ(__NR_creat,     SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_mkdirat,   SECCOMP_RET_ALLOW),
 };
@@ -296,7 +295,7 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   //
   // if (nr == __NR_openat) {
   //   flags = arg2;
-  // } else if (nr == __NR_open) {
+  // } else if (nr == __NR_open || nr == __NR_creat) {
   //   flags = arg1;
   // } else {
   //   goto exit;
@@ -331,9 +330,10 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   struct sock_filter openflags_filter[] = {
     _JEQ(__NR_openat, 0, 2),
     _LD_ARG(2),  // acc := flags (arg 2)
-    _JMP(2),     // goto entry
+    _JMP(3 /* entry */),
 
-    _JEQ(__NR_open, 0, 11),
+    _JEQ(__NR_open, 1, 0),
+    _JEQ(__NR_creat, 0, 10 /* cleanup */),
     _LD_ARG(1),  // acc := flags (arg 1)
 
     // entry:
