@@ -85,7 +85,8 @@ struct sock_filter filter_suffix[] = {
 #define SCOPE_RPATH 0x00000002
 #define SCOPE_WPATH 0x00000004
 #define SCOPE_CPATH 0x00000008
-#define SCOPE_INET  0x00000010
+#define SCOPE_DPATH 0x00000010
+#define SCOPE_INET  0x00000020
 
 
 struct sock_filter stdio_filter[] = {
@@ -127,8 +128,23 @@ struct sock_filter wpath_filter[] = {
 
 // File creation stuff
 struct sock_filter cpath_filter[] = {
+  _RET_EQ(__NR_link,      SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_linkat,    SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_mkdirat,   SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_rename,    SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_renameat,  SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_rmdir,     SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_symlink,   SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_unlink,    SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_unlinkat,  SECCOMP_RET_ALLOW),
+};
+
+
+// Special files
+struct sock_filter dpath_filter[] = {
+  _RET_EQ(__NR_mknod,     SECCOMP_RET_ALLOW),
+  _RET_EQ(__NR_mknodat,   SECCOMP_RET_ALLOW),
 };
 
 
@@ -209,6 +225,8 @@ static int parse_promises(const char* promises, unsigned int* scope_flags) {
       flags |= SCOPE_WPATH;
     } else if (!strcmp(item, "cpath")) {
       flags |= SCOPE_CPATH;
+    } else if (!strcmp(item, "dpath")) {
+      flags |= SCOPE_DPATH;
     } else if (!strcmp(item, "inet")) {
       flags |= SCOPE_INET;
     } else {
