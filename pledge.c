@@ -1,7 +1,8 @@
-#include <sys/types.h>
+#include <sys/mman.h>
+#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/socket.h>
-#include <sys/prctl.h>
+#include <sys/types.h>
 
 #include <linux/net.h>
 #include <linux/audit.h>
@@ -44,6 +45,7 @@
 #define _AND(value)          BPF_STMT(BPF_ALU+BPF_AND+BPF_K, (value))
 #define _SET_X_TO_A()        BPF_STMT(BPF_MISC+BPF_TAX,      0)
 #define _SET_A_TO_X()        BPF_STMT(BPF_MISC+BPF_TXA,      0)
+#define _NOP()               _JMP(0)  // There is probably another way.
 
 #define _LD_ARCH() _LD_STRUCT_VALUE(arch)
 #define _LD_NR() _LD_STRUCT_VALUE(nr)
@@ -87,16 +89,6 @@ struct sock_filter filter_suffix[] = {
 
 
 struct sock_filter stdio_filter[] = {
-  // Memory allocation
-  _RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW),
-#ifdef __NR_mmap
-  _RET_EQ(__NR_mmap,           SECCOMP_RET_ALLOW),
-#endif  // __NR_mmap
-#ifdef __NR_mmap2
-  _RET_EQ(__NR_mmap2,          SECCOMP_RET_ALLOW),
-#endif  // __NR_mmap2
-  _RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_madvise,        SECCOMP_RET_ALLOW),
   // Reading and writing
   _RET_EQ(__NR_read,           SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_readv,          SECCOMP_RET_ALLOW),
@@ -229,7 +221,6 @@ static int parse_promises(const char* promises, unsigned int* scope_flags) {
   *scope_flags = flags;
   free(promises_copy);
   return 0;
-
 }
 
 void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t filter_size) {
@@ -242,7 +233,55 @@ void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t f
 #define APPEND_FILTER(prog, filter) \
   append_filter(prog, filter, sizeof(filter)/sizeof(filter[0]))
 
+static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
+  if (!(scopes & SCOPE_STDIO)) {
+    return;
+  }
+
+  // PROT_EXEC is *not* allowed.
+  int permitted_prot_flags = PROT_READ | PROT_WRITE;
+  struct sock_filter memory_filter[] = {
+    // Generic memory allocation
+    _RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW),
+    _RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW),
+    _RET_EQ(__NR_madvise,        SECCOMP_RET_ALLOW),
+
+    // mmap(), mmap2(), mprotect() only allowed if prot is not PROT_EXEC
+    //
+    // if (nr == __NR_mmap2 || nr == __NR_mmap || nr == __NR_mprotect) {
+    //   int prot = arg2;
+    //   if ((prot | permitted_prot_flags) == permitted_prot_flags) {
+    //     return SECCOMP_RET_ALLOW;
+    //   }
+    // }
+#ifdef __NR_mmap2
+    _JEQ(__NR_mmap2,    2 /* checkprot */, 0),
+#endif  // __NR_mmap2
+
+#ifdef __NR_mmap
+    _JEQ(__NR_mmap,     1 /* checkprot */, 0),
+#else
+    _NOP(),  // To keep jump sizes correct.
+#endif  // __NR_mmap
+
+    _JEQ(__NR_mprotect, 0 /* checkprot */, 4 /* out */),
+
+    // checkprot:
+    _LD_ARG(2),  // acc := prot (same arg position on all three syscalls)
+    _OR(permitted_prot_flags),
+    _RET_EQ(permitted_prot_flags, SECCOMP_RET_ALLOW),  // 2 instructions
+
+    // out:
+    _LD_NR(),
+  };
+  APPEND_FILTER(prog, memory_filter);
+}
+
 static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
+  if (!(scopes & (SCOPE_RPATH | SCOPE_WPATH | SCOPE_CPATH))) {
+    return;
+  }
+
   int may_read = scopes & SCOPE_RPATH;
   int may_write = scopes & SCOPE_WPATH;
   int may_rdwr = may_read && may_write;
@@ -323,9 +362,8 @@ static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
   if (scopes & SCOPE_STDIO) {
     APPEND_FILTER(prog, stdio_filter);
   }
-  if (scopes & (SCOPE_RPATH | SCOPE_WPATH | SCOPE_CPATH)) {
-    append_open_filter(scopes, prog);
-  }
+  append_open_filter(scopes, prog);
+  append_memory_filter(scopes, prog);
   if (scopes & SCOPE_RPATH) {
     APPEND_FILTER(prog, rpath_filter);
   }

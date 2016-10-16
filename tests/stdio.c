@@ -15,7 +15,7 @@ void test_printing() {
 }
 
 void test_alloc_and_free() {
-  char* x = malloc(2000 * 1024 * 20);
+  void* x = malloc(2000 * 1024 * 20);
   free(x);
 }
 
