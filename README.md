@@ -8,8 +8,7 @@ and mitigate the consequences of an attacker taking control of a process.
 
 ## TL;DR
 
-Current implementation is like OpenBSD's `pledge()` (but only supports
-a subset of the features):
+Current implementation is like OpenBSD's `pledge()`.
 
     // Open a bunch of files.
     if (pledge("stdio", NONE) == -1) {
@@ -22,6 +21,8 @@ a subset of the features):
 Any attempt to do system calls outside the previously "pledged"
 functionality will not be permitted and signal `SIGSYS` to the
 process.
+
+For now, only a subset of OpenBSD's features is supported.
 
 ## Motivation
 
