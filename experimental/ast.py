@@ -12,6 +12,13 @@ class _Expr(object):
   def is_value(self):
     return False
 
+  def is_statement(self):
+    return False
+
+  def get_labelname(self):
+    """A clever name for a label pointing here"""
+    return None
+
 
 class _Condition(_Expr):
   def compile_condition(self, then_label, else_label, emit):
@@ -94,13 +101,19 @@ class _Stmt(_Expr):
   def compile_stmt(self, emit):
     raise NotImplementedError("Subclass responsibility")
 
+  def is_statement(self):
+    return True
+
 class Return(_Stmt):
   def __init__(self, expr):
+    assert expr.is_value()
     self.expr = expr
 
   def compile_stmt(self, emit):
-    assert self.expr.is_value()
     emit.ret(self.expr.value)
+
+  def get_labelname(self):
+    return "return " + self.expr.value
 
 class If(_Stmt):
   def __init__(self, cond, then_branch, else_branch=None):
@@ -110,8 +123,8 @@ class If(_Stmt):
 
   def compile_stmt(self, emit):
     assert self.cond.is_condition()
-    then_label = new_label("then_branch")
-    else_label = new_label("else_branch")
+    then_label = new_label("then_branch", block=self.then_branch)
+    else_label = new_label("else_branch", block=self.else_branch)
     done_label = new_label("done_branch")
 
     self.cond.compile_condition(then_label, else_label, emit)
@@ -129,3 +142,8 @@ class Do(_Stmt):
   def compile_stmt(self, emit):
     for stmt in self.stmts:
       stmt.compile_stmt(emit)
+
+  def get_labelname(self):
+    if self.stmts:
+      return sef.stmts[0].get_labelname()
+    return None

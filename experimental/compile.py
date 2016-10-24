@@ -2,9 +2,39 @@
 
 from ast import *
 
+class CPrintingEmit(object):
+  """Emit instructions and labels by printing them."""
+  def __init__(self):
+    self.count = 0
+
+  def _count(self):
+    self.count += 1
+
+  def jmp(self, label):
+    print("    _JMP(%s)," % label)
+
+  def jeq(self, value, then_label, else_label):
+    print("    _JEQ(%s, %s, %s)," % (value, then_label, else_label))
+
+  def ld_nr(self):
+    print("    _LD_NR(),")
+
+  def ld_arg(self, num):
+    print("    _LD_ARG(%d)," % num)
+
+  def label(self, label):
+    print("// %s:" % label)
+
+  def ret(self, value):
+    print("    _RET(%s)," % value)
+
+  def comment(self, comment):
+    print("    //", comment)
+
+
 class PrintingEmit(object):
   """Emit instructions and labels by printing them."""
-  # Note: Thes instructions are just for debugging now.
+  # Note: These instructions are just for debugging now.
 
   def jmp(self, label):
     print("    JMP  ", label)
@@ -104,7 +134,7 @@ class SmartEmit(object):
 
     if label in self.a_by_label:
       # Join symbolic execution states
-      self.a = self._join(self.a, self.a_by_label)
+      self.a = self._join(self.a, self.a_by_label[label])
       # Label only needs to be printed if there was an actual jump
       self.delegate.label(label)
 
