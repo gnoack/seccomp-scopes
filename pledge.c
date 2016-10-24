@@ -60,7 +60,7 @@
   _RET((result))
 
 
-struct sock_filter filter_prefix[] = {
+static struct sock_filter filter_prefix[] = {
   // break on architecture mismatch
   _LD_ARCH(),
   _RET_NEQ(ARCH_NR,        SECCOMP_RET_KILL),
@@ -69,7 +69,7 @@ struct sock_filter filter_prefix[] = {
 };
 
 
-struct sock_filter filter_suffix[] = {
+static struct sock_filter filter_suffix[] = {
   // exit and exit_group are always allowed
   _RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW),
@@ -89,7 +89,7 @@ struct sock_filter filter_suffix[] = {
 #define SCOPE_INET  0x00000020
 
 
-struct sock_filter stdio_filter[] = {
+static struct sock_filter stdio_filter[] = {
   // Reading and writing
   _RET_EQ(__NR_read,           SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_readv,          SECCOMP_RET_ALLOW),
@@ -115,19 +115,13 @@ struct sock_filter stdio_filter[] = {
 
 
 // Opening paths read-only
-struct sock_filter rpath_filter[] = {
+static struct sock_filter rpath_filter[] = {
   _RET_EQ(__NR_chdir, SECCOMP_RET_ALLOW),
 };
 
 
-// Opening paths write-only
-struct sock_filter wpath_filter[] = {
-};
-
-
-
 // File creation stuff
-struct sock_filter cpath_filter[] = {
+static struct sock_filter cpath_filter[] = {
   _RET_EQ(__NR_link,      SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_linkat,    SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW),
@@ -142,14 +136,14 @@ struct sock_filter cpath_filter[] = {
 
 
 // Special files
-struct sock_filter dpath_filter[] = {
+static struct sock_filter dpath_filter[] = {
   _RET_EQ(__NR_mknod,     SECCOMP_RET_ALLOW),
   _RET_EQ(__NR_mknodat,   SECCOMP_RET_ALLOW),
 };
 
 
 // Internet (IPv4, IPv6)
-struct sock_filter inet_filter[] = {
+static struct sock_filter inet_filter[] = {
   // socket(domain, type, protocol)
   // domain == AF_INET || domain == AF_INET6
   // type == SOCK_STREAM || type == SOCK_DGRAM
@@ -244,7 +238,7 @@ static int parse_promises(const char* promises, unsigned int* scope_flags) {
   return 0;
 }
 
-void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t filter_size) {
+static void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t filter_size) {
   size_t old_size = prog->len;
   prog->len += filter_size;
   prog->filter = reallocarray(prog->filter, sizeof(prog->filter[0]), prog->len);
@@ -389,11 +383,11 @@ static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
   if (scopes & SCOPE_RPATH) {
     APPEND_FILTER(prog, rpath_filter);
   }
-  if (scopes & SCOPE_WPATH) {
-    APPEND_FILTER(prog, wpath_filter);
-  }
   if (scopes & SCOPE_CPATH) {
     APPEND_FILTER(prog, cpath_filter);
+  }
+  if (scopes & SCOPE_DPATH) {
+    APPEND_FILTER(prog, dpath_filter);
   }
   if (scopes & SCOPE_INET) {
     APPEND_FILTER(prog, inet_filter);
