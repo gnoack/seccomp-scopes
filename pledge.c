@@ -181,11 +181,15 @@ struct sock_filter inet_filter[] = {
   // listen(socket, backlog)
   // backlog is a hint
 
+#ifdef __NR_recv
   _RET_EQ(__NR_recv,      SECCOMP_RET_ALLOW),
   // recv(socket, *buf, len, flags)
+#endif  // __NR_recv
 
+#ifdef __NR_send
   _RET_EQ(__NR_send,      SECCOMP_RET_ALLOW),
   // send(socket, *buf, len, flags)
+#endif  // __NR_send
 
   _RET_EQ(__NR_recvfrom,  SECCOMP_RET_ALLOW),
   // recvfrom(socket, *buf, len, flags, *src_addr, *addrlen)
