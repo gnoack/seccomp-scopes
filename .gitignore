@@ -3,3 +3,5 @@
 tests/inet
 tests/stdio
 tests/paths
+tests/.throwaway-test-output
+__pycache__
