@@ -29,13 +29,13 @@ class PrintingEmit(object):
 
 
 class SmartEmit(object):
-  """Track liveness, track what's loaded to AX."""
+  """Track liveness, track what's loaded to the A register."""
 
   def __init__(self, delegate):
     self.delegate = delegate
     self.live = True
 
-    # Symbolic value of the a register (e.g. 'NR', 'ARG0', 'ARG1', ...)
+    # Symbolic value of the A register (e.g. 'NR', 'ARG0', 'ARG1', ...)
     self.a = None  # unknown
     self.a_by_label = {}
 
