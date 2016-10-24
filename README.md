@@ -22,7 +22,7 @@ Any attempt to do system calls outside the previously "pledged"
 functionality will not be permitted and signal `SIGSYS` to the
 process.
 
-For now, only a subset of OpenBSD's features is supported.
+For now, only a subset of OpenBSD's features are supported.
 
 ## Motivation
 
