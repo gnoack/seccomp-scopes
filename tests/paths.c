@@ -9,7 +9,10 @@
 
 void test_fopen_file_writing() {
   FILE* f = fopen(".throwaway-test-output", "w");
-  char* buf = "Hello, world.";
+  if (f == NULL) {
+    puts("Can't fopen(..., \"w\"): BROKEN");
+  }
+  char buf[] = "Hello, world.";
   size_t size = fwrite(buf, sizeof(buf), 1, f);
   if (ferror(f)) {
     puts("Error writing: BROKEN");
