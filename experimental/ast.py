@@ -113,6 +113,7 @@ class Arg(_Input):
     emit.ld_arg(self.num)
 
 
+# TODO(gnoack): A statement is not an expression.
 class _Stmt(_Expr):
   def compile_stmt(self, emit):
     raise NotImplementedError("Subclass responsibility")
