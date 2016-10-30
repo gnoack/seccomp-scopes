@@ -82,13 +82,24 @@ class Value(_Expr):
   def is_value(self):
     return True
 
+
+class HasScope(_Condition):
+  def __init__(self, name):
+    self.name = name
+
+  def compile_condition(self, then_label, else_label, emit):
+    emit.jmp_if_scope(self.name, then_label, else_label)
+
+
 class _Input(_Expr):
   def is_input(self):
     return True
 
+
 class SysNr(_Input):
   def compile_expression(self, emit):
     emit.ld_nr()
+
 
 class Arg(_Input):
   def __init__(self, num):
@@ -97,12 +108,14 @@ class Arg(_Input):
   def compile_expression(self, emit):
     emit.ld_arg(self.num)
 
+
 class _Stmt(_Expr):
   def compile_stmt(self, emit):
     raise NotImplementedError("Subclass responsibility")
 
   def is_statement(self):
     return True
+
 
 class Return(_Stmt):
   def __init__(self, expr):
@@ -114,6 +127,7 @@ class Return(_Stmt):
 
   def get_labelname(self):
     return "return " + self.expr.value
+
 
 class If(_Stmt):
   def __init__(self, cond, then_branch, else_branch=None):
@@ -135,6 +149,7 @@ class If(_Stmt):
     self.else_branch.compile_stmt(emit)
     emit.label(done_label)
 
+
 class Do(_Stmt):
   def __init__(self, *stmts):
     self.stmts = stmts
@@ -145,5 +160,5 @@ class Do(_Stmt):
 
   def get_labelname(self):
     if self.stmts:
-      return sef.stmts[0].get_labelname()
+      return self.stmts[0].get_labelname()
     return None

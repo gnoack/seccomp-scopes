@@ -97,6 +97,14 @@ class SmartEmit(object):
     self.delegate.jmp(label)
     self._register_jump(label)
 
+  def jmp_if_scope(self, scope_name, then_label, else_label):
+    if not self.live:
+      return
+
+    self.delegate.jmp("SCOPE_%s ? %s : %s" % (scope_name, then_label, else_label))
+    self._register_jump(then_label)
+    self._register_jump(else_label)
+
   def jeq(self, value, then_label, else_label):
     if not self.live:
       return
