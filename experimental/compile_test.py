@@ -10,7 +10,8 @@ rule = Do(
      Do(
        If(And(Or(Eq(SysNr(), Value("__NR_open")),
                  Eq(SysNr(), Value("__NR_openat"))),
-              Eq(Arg(1), Value("O_RDONLY"))),
+              Eq(BinaryOr(Arg(1), Value("permitted_open_flags")),
+                 Value("permitted_open_flags"))),
           Return(Value("SECCOMP_RET_ALLOW")),
        ),
        If(Or(Eq(SysNr(), Value("__NR_read")),

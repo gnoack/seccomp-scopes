@@ -2,11 +2,11 @@
 
 from label import new_label
 
-class _Expr(object):
+class _ASTNode(object):
   def is_condition(self):
     return False
 
-  def is_input(self):
+  def is_expr(self):
     return False
 
   def is_value(self):
@@ -20,7 +20,45 @@ class _Expr(object):
     return None
 
 
-class _Condition(_Expr):
+# A statement is an AST node, which, when compiled,
+# just emits instructions which maybe modify the value
+# of the A register.
+class _Stmt(_ASTNode):
+  def compile_stmt(self, emit):
+    raise NotImplementedError("Subclass responsibility")
+
+  def is_statement(self):
+    return True
+
+
+# An expression is an AST node, which, when compiled,
+# puts a value into the A register.
+class _Expr(_ASTNode):
+  def compile_expression(self, emit):
+    raise NotImplementedError("Subclass responsibility")
+
+  def is_expr(self):
+    return True
+
+
+# A value is a special kind of expression, whose value
+# is known at BPF instantiation time and which can be
+# used as immediate argument to a BPF instruction.
+class Value(_Expr):
+  def __init__(self, value):
+    self.value = value
+
+  def is_value(self):
+    return True
+
+  def compile_expression(self, emit):
+    # TODO(gnoack): Implement this.
+    raise NotImplementedError("I should implement this")
+
+
+# A condition is an expression-like AST node, which,
+# when compiled, jumps to the 'then' or 'else' label.
+class _Condition(_ASTNode):
   def compile_condition(self, then_label, else_label, emit):
     raise NotImplementedError("Subclass responsibility")
 
@@ -60,11 +98,7 @@ class Eq(_Condition):
     self.rhs = rhs
 
   def compile_condition(self, then_label, else_label, emit):
-    # TODO(gnoack): These are the wrong categories.  What is really
-    # supported here is:
-    #  - lhs puts its value into the A register
-    #  - rhs is a value we can use as immediate value
-    assert self.lhs.is_input()
+    assert self.lhs.is_expr()
     assert self.rhs.is_value()
     self.lhs.compile_expression(emit)
     emit.jeq(self.rhs.value, then_label, else_label)
@@ -79,12 +113,16 @@ class Not(_Condition):
     self.cond.compile_condition(else_label, then_label, emit)
 
 
-class Value(_Expr):
-  def __init__(self, value):
+class BinaryOr(_Expr):
+  def __init__(self, expr, value):
+    self.expr = expr
     self.value = value
 
-  def is_value(self):
-    return True
+  def compile_expression(self, emit):
+    assert self.expr.is_expr()
+    assert self.value.is_value()
+    self.expr.compile_expression(emit)
+    emit.binary_or(self.value.value)
 
 
 class HasScope(_Condition):
@@ -95,31 +133,17 @@ class HasScope(_Condition):
     emit.jmp_if_scope(self.name, then_label, else_label)
 
 
-class _Input(_Expr):
-  def is_input(self):
-    return True
-
-
-class SysNr(_Input):
+class SysNr(_Expr):
   def compile_expression(self, emit):
     emit.ld_nr()
 
 
-class Arg(_Input):
+class Arg(_Expr):
   def __init__(self, num):
     self.num = num
 
   def compile_expression(self, emit):
     emit.ld_arg(self.num)
-
-
-# TODO(gnoack): A statement is not an expression.
-class _Stmt(_Expr):
-  def compile_stmt(self, emit):
-    raise NotImplementedError("Subclass responsibility")
-
-  def is_statement(self):
-    return True
 
 
 class Return(_Stmt):
