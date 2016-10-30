@@ -25,6 +25,22 @@ depending on which scopes are requested:
     }
     // ...
 
+## Idea: Extract this code as a early pass on the AST
+
+Maybe some of this C code can be generated on the fly and extracted
+from the other code.  This could be done as a step on the AST.
+
+Example: If the input is (in pseudocode):
+
+    int permitted_open_flags = O_ACCMODE | (SCOPE_wpath ? O_TRUNC | O_APPEND : 0);
+    If (arg(1) | permitted_open_flags == permitted_open_flags) {
+      return SECCOMP_RET_ALLOW;
+    }
+
+This code is side effect free and the compiler can easily determine that the
+definition of `permitted_open_flags` can be entirely calculated at least at
+BPF instantiation time.  The compiler could pull this out on its own.
+
 ## HasScope() condition
 
 Add a HasScope("rpath")-like condition construct, which can be
