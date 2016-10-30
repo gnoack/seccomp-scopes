@@ -28,6 +28,9 @@ class CPrintingEmit(object):
   def ret(self, value):
     print("    _RET(%s)," % value)
 
+  def binary_or(self, value):
+    print("    _OR(%s)," % value)
+
   def comment(self, comment):
     print("    //", comment)
 
@@ -53,6 +56,9 @@ class PrintingEmit(object):
 
   def ret(self, value):
     print("    RET  ", value)
+
+  def binary_or(self, value):
+    print("    OR   ", value)
 
   def comment(self, comment):
     print("    //", comment)
@@ -152,6 +158,9 @@ class SmartEmit(object):
 
     self.delegate.ret(value)
     self.live = False
+
+  def binary_or(self, value):
+    self.delegate.binary_or(value)
 
   def comment(self, comment):
     self.delegate.comment(comment)

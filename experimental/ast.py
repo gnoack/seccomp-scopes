@@ -60,6 +60,10 @@ class Eq(_Condition):
     self.rhs = rhs
 
   def compile_condition(self, then_label, else_label, emit):
+    # TODO(gnoack): These are the wrong categories.  What is really
+    # supported here is:
+    #  - lhs puts its value into the A register
+    #  - rhs is a value we can use as immediate value
     assert self.lhs.is_input()
     assert self.rhs.is_value()
     self.lhs.compile_expression(emit)
