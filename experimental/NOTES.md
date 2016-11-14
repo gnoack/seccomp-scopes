@@ -76,3 +76,9 @@ The emitted C code could look like this:
     ...
     _JMP(SCOPE_rpath ? rpath_enabled : rpath_not_enabled),
     ...
+
+## Idea: Deduplicate equal basic blocks
+
+If the compiler had a notion of what a basic block is, it could
+deduplicate the basic blocks which are the same, such as the one that
+returns with 'allow'.
