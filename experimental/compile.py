@@ -1,38 +1,76 @@
 #!/usr/bin/python
 
+import collections
+
 from ast import *
+
+
+class CompileException(Exception):
+  pass
+
+
+Label = collections.namedtuple('Label', ('name',))
+
 
 class CPrintingEmit(object):
   """Emit instructions and labels by printing them."""
   def __init__(self):
     self.count = 0
+    self.labels = {}
+    self.later = []
 
-  def _count(self):
-    self.count += 1
+  def _lookup_labels(self, arg, ip):
+    if isinstance(arg, Label):
+      try:
+        instructions_to_skip = self.labels[arg.name] - ip - 1
+      except KeyError:
+        raise CompileException("Tried to jump to unresolved label %r" % arg.name)
+      if instructions_to_skip:
+        arg = "%d /* %s */" % (instructions_to_skip, arg.name)
+      else:
+        arg = "0"
+    return arg
+
+  def _emit(self, fmt, *args, count=1):
+    self.later.append((self.count, fmt, args))
+    self.count += count
 
   def jmp(self, label):
-    print("    _JMP(%s)," % label)
+    self._emit("    _JMP(%s),", Label(label))
+
+  def jmp_if_scope(self, scope_name, then_label, else_label):
+    self._emit("#ifdef %s",         scope_name,        count=0)
+    self._emit("    _JMP(%s),",     Label(then_label), count=0)
+    self._emit("#else",                                count=0)
+    self._emit("    _JMP(%s),",     Label(else_label), count=0)
+    self._emit("#end if  /* %s */", scope_name,        count=0)
+    self.count += 1
 
   def jeq(self, value, then_label, else_label):
-    print("    _JEQ(%s, %s, %s)," % (value, then_label, else_label))
+    self._emit("    _JEQ(%s, %s, %s),", value, Label(then_label), Label(else_label))
 
   def ld_nr(self):
-    print("    _LD_NR(),")
+    self._emit("    _LD_NR(),")
 
   def ld_arg(self, num):
-    print("    _LD_ARG(%d)," % num)
+    self._emit("    _LD_ARG(%d),", num)
 
   def label(self, label):
-    print("// %s:" % label)
+    self.labels[label] = self.count
+    self._emit("// %s:", label, count=0)
 
   def ret(self, value):
-    print("    _RET(%s)," % value)
+    self._emit("    _RET(%s),", value)
 
   def binary_or(self, value):
-    print("    _OR(%s)," % value)
+    self._emit("    _OR(%s),", value)
 
   def comment(self, comment):
-    print("    //", comment)
+    self._emit("    // %s", comment, count=0)
+
+  def flush(self):
+    for ip, fmt, args in self.later:
+      print(fmt % tuple([self._lookup_labels(arg, ip) for arg in args]))
 
 
 class PrintingEmit(object):
@@ -41,6 +79,13 @@ class PrintingEmit(object):
 
   def jmp(self, label):
     print("    JMP  ", label)
+
+  def jmp_if_scope(self, scope_name, then_label, else_label):
+    print("#ifdef ", scope_name)
+    print("    JMP  ", then_label)
+    print("#else")
+    print("    JMP  ", else_label)
+    print("#endif /*", scope_name, "*/")
 
   def jeq(self, value, then_label, else_label):
     print("    JEQ  ", ", ".join((value, then_label, else_label)))
@@ -62,6 +107,9 @@ class PrintingEmit(object):
 
   def comment(self, comment):
     print("    //", comment)
+
+  def flush(self):
+    pass
 
 
 class SmartEmit(object):
@@ -86,7 +134,7 @@ class SmartEmit(object):
   def _register_jump(self, label):
     # Figure out what's the A register content when entering the given
     # label.  When we see the first jump to the label, we note down
-    # the current content.  Whne we see subsequent jumps, we check
+    # the current content.  When we see subsequent jumps, we check
     # that it matches.  If it doesn't match, we invalidate what we
     # know about A at label entry and enforce to load A fresh later.
     if label not in self.a_by_label:
@@ -107,7 +155,7 @@ class SmartEmit(object):
     if not self.live:
       return
 
-    self.delegate.jmp("SCOPE_%s ? %s : %s" % (scope_name, then_label, else_label))
+    self.delegate.jmp_if_scope(scope_name, then_label, else_label)
     self._register_jump(then_label)
     self._register_jump(else_label)
 
@@ -164,3 +212,6 @@ class SmartEmit(object):
 
   def comment(self, comment):
     self.delegate.comment(comment)
+
+  def flush(self):
+    self.delegate.flush()

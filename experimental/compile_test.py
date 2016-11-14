@@ -3,7 +3,7 @@
 # TODO(gnoack): Write this as a proper unit test.
 
 from ast import *
-from compile import SmartEmit, PrintingEmit
+from compile import SmartEmit, CPrintingEmit
 
 rule = Do(
   If(HasScope("rpath"),
@@ -23,5 +23,6 @@ rule = Do(
   Return(Value("SECCOMP_RET_DENY")),
 )
 
-emit = SmartEmit(PrintingEmit())
+emit = SmartEmit(CPrintingEmit())
 rule.compile_stmt(emit)
+emit.flush()
