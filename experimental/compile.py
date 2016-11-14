@@ -39,12 +39,7 @@ class CPrintingEmit(object):
     self._emit("    _JMP(%s),", Label(label))
 
   def jmp_if_scope(self, scope_name, then_label, else_label):
-    self._emit("#ifdef %s",         scope_name,        count=0)
-    self._emit("    _JMP(%s),",     Label(then_label), count=0)
-    self._emit("#else",                                count=0)
-    self._emit("    _JMP(%s),",     Label(else_label), count=0)
-    self._emit("#end if  /* %s */", scope_name,        count=0)
-    self.count += 1
+    self._emit("    _JMP(SCOPE_%s ? %s : %s),", scope_name, Label(then_label), Label(else_label))
 
   def jeq(self, value, then_label, else_label):
     self._emit("    _JEQ(%s, %s, %s),", value, Label(then_label), Label(else_label))
@@ -81,11 +76,7 @@ class PrintingEmit(object):
     print("    JMP  ", label)
 
   def jmp_if_scope(self, scope_name, then_label, else_label):
-    print("#ifdef ", scope_name)
-    print("    JMP  ", then_label)
-    print("#else")
-    print("    JMP  ", else_label)
-    print("#endif /*", scope_name, "*/")
+    print("    JMP  (SCOPE_", scope_name, " ? ", then_label, " : ", else_label, ")", sep="")
 
   def jeq(self, value, then_label, else_label):
     print("    JEQ  ", ", ".join((value, then_label, else_label)))
