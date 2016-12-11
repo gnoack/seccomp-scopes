@@ -17,6 +17,7 @@
 #include <fcntl.h>  /* open() flags */
 #include <signal.h>
 #include <stdarg.h>
+#include <stdbool.h>  /* bool */
 #include <stddef.h>  /* for offsetof */
 #include <stdio.h>
 #include <stdlib.h>
@@ -297,10 +298,10 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
     return;
   }
 
-  int may_read = scopes & SCOPE_RPATH;
-  int may_write = scopes & SCOPE_WPATH;
-  int may_rdwr = may_read && may_write;
-  int may_create = scopes & SCOPE_CPATH;
+  bool may_read = scopes & SCOPE_RPATH;
+  bool may_write = scopes & SCOPE_WPATH;
+  bool may_rdwr = may_read && may_write;
+  bool may_create = scopes & SCOPE_CPATH;
 
   // We are first checking the access mode (can be masked),
   // then the other flags in the same open() argument.
@@ -409,31 +410,32 @@ int pledge(const char* promises, const char* paths[]) {
     // the argument purely exists for OpenBSD compatibility
     // and in the hope this will be fixed in the kernel. :)
     errno = E2BIG;
-    retval = -1;
-    goto cleanup;
+    goto error;
   }
 
   unsigned int scopes = 0;
   if (parse_promises(promises, &scopes) == -1) {
     errno = EINVAL;
-    retval = -1;
-    goto cleanup;
+    goto error;
   }
   fill_filter(scopes, &prog);
 
   // Actually enable this.
   if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
     errno = EPERM;  // TODO: Find better error code.
-    retval = -1;
-    goto cleanup;
+    goto error;
   }
   if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
     errno = EPERM;
-    retval = -1;
-    goto cleanup;
+    goto error;
   }
 
- cleanup:
+  goto success;
+
+ error:
+  retval = -1;
+
+ success:
   free(prog.filter);
   return retval;
 }
