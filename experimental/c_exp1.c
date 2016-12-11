@@ -1,18 +1,11 @@
 // An experimental way of reliably putting together BPF code.
 //
-// BPF code needs to know how many instructions to skip, and counting
-// instructions manually is error prone.
-//
-// On the downside, this is technically written to count instructions
-// at runtime, and to check at runtime whether hardcoded label
-// positions are correct.
-//
-// On the upside, gcc can optimize away the counter and the related
-// checks.
+// This code looks like it's doing unnecessary work, but most of the
+// safety checks are optimized away at compile time.
 //
 // All checks that should be optimized away have an error message with
 // the substring "BADBPF".  If your compiled binary doesn't contain
-// that word, the counter is probably compiled away.
+// that word, all these checks have disappeared.
 
 #include <asm/unistd.h>
 #include <stdio.h>
@@ -42,12 +35,13 @@
 #define _AND(value)          _BPF_STMT(BPF_ALU+BPF_AND+BPF_K, (value))
 #define _SET_X_TO_A()        _BPF_STMT(BPF_MISC+BPF_TAX,      0)
 #define _SET_A_TO_X()        _BPF_STMT(BPF_MISC+BPF_TXA,      0)
-#define _NOP()               _JMP(0)  // There is probably another way.
+#define _NOP()               _JMP(0)  // Gets optimized away by the x86 BPF JIT.
 
 #define _LD_STRUCT_VALUE(field)                                         \
   _BPF_STMT(BPF_LD+BPF_W+BPF_ABS,                                       \
             offsetof(struct seccomp_data, field))
 
+// TODO(gnoack): Double check whether LD_ARG(n) is platform independent.
 #define _LD_ARCH() _LD_STRUCT_VALUE(arch)
 #define _LD_NR() _LD_STRUCT_VALUE(nr)
 #define _LD_ARG(n) _LD_STRUCT_VALUE(args[n])
@@ -131,6 +125,10 @@ typedef struct {
     }                                                                   \
   }
 
+// -------------------------------------------------------------------
+// Main function putting together a test BPF.
+// -------------------------------------------------------------------
+// TODO(gnoack): Convert this to a test checking for correct jumps.
 int main() {
   DECLARELABEL(deny);
 
