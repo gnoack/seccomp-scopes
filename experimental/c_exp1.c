@@ -24,7 +24,7 @@
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 
-
+// TODO(gnoack): Add overflow check! Should get optimized away.
 #define _BPF_STMT(...) do {                                             \
     __filter[__filter_ip] = (struct sock_filter) BPF_STMT(__VA_ARGS__); \
     __filter_ip++;                                                      \
@@ -60,20 +60,12 @@
   _JEQ((value), 1, 0);          \
   _RET((result))
 
+// -------------------------------------------------------------------
+// Define the implicit place to gather BPF code.
+// -------------------------------------------------------------------
+// TODO(gnoack): This should be a struct.
 
-// Convert an absolute label position into a relative one, as needed
-// in BPF code (== how many instructions to skip).
-#define TO(name) (name - __filter_ip - 1)
-
-// At the place where the label is, check that the predicted label
-// position is correct.
-#define LABEL(name)                                                     \
-  if (__filter_ip != name) {                                            \
-    errx(1, "BADBPF: Label " #name " is at position %d, not %d", __filter_ip, name); \
-  }
-
-
-#define BPFFILTER                               \
+#define BPFFILTER                                    \
   unsigned __filter_ip = 0;                          \
   static struct sock_filter __filter[20];
 
@@ -86,10 +78,61 @@
     .filter = __filter,                                          \
   };
 
+// -------------------------------------------------------------------
+// Tracking labels in BPF code
+// -------------------------------------------------------------------
+// In BPF, you can only jump downwards.  At the callsite, we store the
+// current code position into a callsite struct with the label's name.
+// At the jump target where the label is declared, we retroactively
+// fill in the JT, JF or K values of the callsite instruction.
+//
+// A well-optimizing compiler will optimize away most of the relevant
+// code, as long as the jumps is always skipping the same number of
+// instructions.
+//
+// It's a known limitation that there can be only one callsite for
+// each label.  If you need more, use multiple labels instead.
+typedef struct {
+  int ip;
+  enum {
+    JT = 0,
+    JF = 1,
+    K = 2,
+  } argtype;
+} callsite;
+
+#define DECLARELABEL(name)                                              \
+  callsite __##name##_callsite = { .ip = -1, .argtype = -1 };
+
+#define TO_GENERIC(name, type)                                          \
+  (__##name##_callsite.ip = __filter_ip,                                \
+   __##name##_callsite.argtype = type,                                  \
+   0)
+
+#define TO(name) TO_GENERIC(name, K)
+#define THEN_TO(name) TO_GENERIC(name, JT)
+#define ELSE_TO(name) TO_GENERIC(name, JF)
+
+#define LABEL(name)                                                     \
+  if (__##name##_callsite.ip != -1) {                                   \
+    int csip = __##name##_callsite.ip;                                  \
+    switch (__##name##_callsite.argtype) {                              \
+    case K:                                                             \
+      __filter[csip].k = __filter_ip - csip - 1;                        \
+      break;                                                            \
+    case JT:                                                            \
+      __filter[csip].jt = __filter_ip - csip - 1;                       \
+      break;                                                            \
+    case JF:                                                            \
+      __filter[csip].jf = __filter_ip - csip - 1;                       \
+      break;                                                            \
+    default:                                                            \
+      errx(1, "BADBPF: Unknown callsite type. (Should not happen.)");   \
+    }                                                                   \
+  }
 
 int main() {
-  // Declare label positions ahead of time.
-  unsigned deny = 11;
+  DECLARELABEL(deny);
 
   // In the filter, TO(x) calculates the relative position of label x
   // (== how many instructions to be skipped from here to get to x).
@@ -100,7 +143,7 @@ int main() {
     // domain == AF_INET || domain == AF_INET6
     // type == SOCK_STREAM || type == SOCK_DGRAM
     // type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
-    _JEQ(__NR_socket, 0, TO(deny));  // if (nr != __NR_socket) goto deny
+    _JEQ(__NR_socket, 0, ELSE_TO(deny));  // if (nr != __NR_socket) goto deny
     _LD_ARG(0);  // domain
     _JEQ(AF_INET,  1, 0);  // if (domain==AF_INET ||
     _JEQ(AF_INET6, 0, 3);  //     domain==AF_INET6) {
