@@ -9,6 +9,7 @@
 
 #include <asm/unistd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <err.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -19,13 +20,19 @@
 
 // TODO(gnoack): Add overflow check! Should get optimized away.
 #define _BPF_STMT(...) do {                                             \
-    __filter[__filter_ip] = (struct sock_filter) BPF_STMT(__VA_ARGS__); \
-    __filter_ip++;                                                      \
+    __code[__filter->len] = (struct sock_filter) BPF_STMT(__VA_ARGS__); \
+    __filter->len++;                                                    \
+    if (__filter->len >= BPFSIZE) {                                     \
+      errx(1, "BADBPF: BPF code using too much space.");                \
+    }                                                                   \
   } while(0);
 
 #define _BPF_JUMP(...) do {                                             \
-    __filter[__filter_ip] = (struct sock_filter) BPF_JUMP(__VA_ARGS__); \
-    __filter_ip++;                                                      \
+    __code[__filter->len] = (struct sock_filter) BPF_JUMP(__VA_ARGS__); \
+    __filter->len++;                                                    \
+    if (__filter->len >= BPFSIZE) {                                     \
+      errx(1, "BADBPF: BPF code using too much space.");                \
+    }                                                                   \
   } while(0);
 
 #define _JMP(j)              _BPF_STMT(BPF_JMP+BPF_JA+BPF_K,  (j))
@@ -59,18 +66,16 @@
 // -------------------------------------------------------------------
 // TODO(gnoack): This should be a struct.
 
-#define BPFFILTER                                    \
-  unsigned __filter_ip = 0;                          \
-  static struct sock_filter __filter[20];
+#define BPFSIZE 20
 
-#define BPFFILTER_DONE(name)                                     \
-  if (__filter_ip >= (sizeof(__filter) / sizeof(__filter[0]))) { \
-    errx(1, "BADBPF: BPF code using too much space.");           \
-  }                                                              \
-  struct sock_fprog name = {                                     \
-    .len = __filter_ip,                                          \
-    .filter = __filter,                                          \
-  };
+// TODO(gnoack): Check BPF size.
+#define BPFFILTER(name)                              \
+  struct sock_filter __code[BPFSIZE];                \
+  struct sock_fprog name = {                         \
+    .len = 0,                                        \
+    .filter = __code,                                \
+  };                                                 \
+  struct sock_fprog* __filter = &name;
 
 // -------------------------------------------------------------------
 // Tracking labels in BPF code
@@ -99,7 +104,7 @@ typedef struct {
   callsite __##name##_callsite = { .ip = -1, .argtype = -1 };
 
 #define TO_GENERIC(name, type)                                          \
-  (__##name##_callsite.ip = __filter_ip,                                \
+  (__##name##_callsite.ip = __filter->len,                              \
    __##name##_callsite.argtype = type,                                  \
    0)
 
@@ -112,13 +117,13 @@ typedef struct {
     int csip = __##name##_callsite.ip;                                  \
     switch (__##name##_callsite.argtype) {                              \
     case K:                                                             \
-      __filter[csip].k = __filter_ip - csip - 1;                        \
+      __code[csip].k = __filter->len - csip - 1;                        \
       break;                                                            \
     case JT:                                                            \
-      __filter[csip].jt = __filter_ip - csip - 1;                       \
+      __code[csip].jt = __filter->len - csip - 1;                       \
       break;                                                            \
     case JF:                                                            \
-      __filter[csip].jf = __filter_ip - csip - 1;                       \
+      __code[csip].jf = __filter->len - csip - 1;                       \
       break;                                                            \
     default:                                                            \
       errx(1, "BADBPF: Unknown callsite type. (Should not happen.)");   \
@@ -135,7 +140,7 @@ int main() {
   // In the filter, TO(x) calculates the relative position of label x
   // (== how many instructions to be skipped from here to get to x).
   // LABEL(x) declares the position of label x.
-  BPFFILTER {
+  BPFFILTER(inet_filter) {
     _LD_NR();
     // socket(domain, type, protocol)
     // domain == AF_INET || domain == AF_INET6
@@ -152,7 +157,6 @@ int main() {
     LABEL(deny);
     _RET(SECCOMP_RET_TRAP);
   };
-  BPFFILTER_DONE(inet_filter);
 
   if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
     errx(1, "Can't set NO_NEW_PRIVS.");
