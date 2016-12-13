@@ -18,7 +18,6 @@
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 
-// TODO(gnoack): Add overflow check! Should get optimized away.
 #define _BPF_STMT(...) do {                                             \
     __code[__filter->len] = (struct sock_filter) BPF_STMT(__VA_ARGS__); \
     __filter->len++;                                                    \
@@ -64,11 +63,9 @@
 // -------------------------------------------------------------------
 // Define the implicit place to gather BPF code.
 // -------------------------------------------------------------------
-// TODO(gnoack): This should be a struct.
 
 #define BPFSIZE 20
 
-// TODO(gnoack): Check BPF size.
 #define BPFFILTER(name)                              \
   struct sock_filter __code[BPFSIZE];                \
   struct sock_fprog name = {                         \
