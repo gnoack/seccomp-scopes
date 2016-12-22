@@ -92,29 +92,35 @@ static struct sock_filter filter_suffix[] = {
 #define SCOPE_INET  0x00000020
 
 
-static struct sock_filter stdio_filter[] = {
-  // Reading and writing
-  __RET_EQ(__NR_read,           SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_readv,          SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_pread64,        SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_preadv,         SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_preadv2,        SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_write,          SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_writev,         SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_pwrite64,       SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_pwritev,        SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_pwritev2,       SECCOMP_RET_ALLOW),
-  // Stuff
-  __RET_EQ(__NR_fstat,          SECCOMP_RET_ALLOW),
+static void append_stdio_filter(unsigned int scopes, struct sock_fprog* prog) {
+  if (!(scopes & SCOPE_STDIO)) {
+    return;
+  }
+
+  BPFINTO(prog) {
+    // Reading and writing
+    _RET_EQ(__NR_read,           SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_readv,          SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_pread64,        SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_preadv,         SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_preadv2,        SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_write,          SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_writev,         SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_pwrite64,       SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_pwritev,        SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_pwritev2,       SECCOMP_RET_ALLOW);
+    // Stuff
+    _RET_EQ(__NR_fstat,          SECCOMP_RET_ALLOW);
 #ifdef __NR_fstat64
-  __RET_EQ(__NR_fstat64,        SECCOMP_RET_ALLOW),
+    _RET_EQ(__NR_fstat64,        SECCOMP_RET_ALLOW);
 #endif  // __NR_fstat64
-  // Time
-  __RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_clock_getres,   SECCOMP_RET_ALLOW),
-  // Closing file descriptors
-  __RET_EQ(__NR_close,          SECCOMP_RET_ALLOW),
-};
+    // Time
+    _RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_clock_getres,   SECCOMP_RET_ALLOW);
+    // Closing file descriptors
+    _RET_EQ(__NR_close,          SECCOMP_RET_ALLOW);
+  }
+}
 
 
 // Opening paths read-only
@@ -381,9 +387,7 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
 static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
   APPEND_FILTER(prog, filter_prefix);
 
-  if (scopes & SCOPE_STDIO) {
-    APPEND_FILTER(prog, stdio_filter);
-  }
+  append_stdio_filter(scopes, prog);
   append_open_filter(scopes, prog);
   append_memory_filter(scopes, prog);
   if (scopes & SCOPE_RPATH) {
