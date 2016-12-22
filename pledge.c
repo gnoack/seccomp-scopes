@@ -24,17 +24,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#if defined(__i386__)
-# define ARCH_NR	AUDIT_ARCH_I386
-#elif defined(__x86_64__)
-# define ARCH_NR	AUDIT_ARCH_X86_64
-#elif defined(__ARM_EABI__)
-# define ARCH_NR        AUDIT_ARCH_ARM
-#else
-# warning "Platform does not support seccomp filter yet"
-# define ARCH_NR	0
-#endif
-
 #define __LD_STRUCT_VALUE(field)                                         \
   BPF_STMT(BPF_LD+BPF_W+BPF_ABS,                                        \
            offsetof(struct seccomp_data, field))
@@ -60,6 +49,17 @@
   __JEQ((value), 1, 0),          \
   __RET((result))
 
+
+#if defined(__i386__)
+# define ARCH_NR	AUDIT_ARCH_I386
+#elif defined(__x86_64__)
+# define ARCH_NR	AUDIT_ARCH_X86_64
+#elif defined(__ARM_EABI__)
+# define ARCH_NR        AUDIT_ARCH_ARM
+#else
+# warning "Platform does not support seccomp filter yet"
+# define ARCH_NR	0
+#endif
 
 static struct sock_filter filter_prefix[] = {
   // break on architecture mismatch
