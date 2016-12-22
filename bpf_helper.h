@@ -88,6 +88,8 @@
 //
 // It's a known limitation that there can be only one callsite for
 // each label.  If you need more, use multiple labels instead.
+//
+// TODO(gnoack): Support multiple callers.
 typedef struct {
   int ip;
   enum {
@@ -101,7 +103,9 @@ typedef struct {
   callsite __##name##_callsite = { .ip = -1, .argtype = -1 };
 
 #define TO_GENERIC(name, type)                                          \
-  (__##name##_callsite.ip = __filter->len,                              \
+  (__##name##_callsite.ip != -1 ?                                       \
+   errx(1, "BADBPF: Jumping twice to " #name ".") : 0,                  \
+   __##name##_callsite.ip = __filter->len,                              \
    __##name##_callsite.argtype = type,                                  \
    0)
 
