@@ -11,7 +11,7 @@
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 
-// TODO(gnoack): This is very inflexible and not clever at all.
+// TODO(gnoack): Support bpf filters of arbitrary size.
 #define BPFSIZE 100
 
 #define _BPF_STMT(...) do {                                             \
