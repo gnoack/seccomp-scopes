@@ -124,91 +124,115 @@ static void append_stdio_filter(unsigned int scopes, struct sock_fprog* prog) {
 
 
 // Opening paths read-only
-static struct sock_filter rpath_filter[] = {
-  __RET_EQ(__NR_chdir, SECCOMP_RET_ALLOW),
-};
+static void append_rpath_filter(unsigned int scopes, struct sock_fprog* prog) {
+  if (!(scopes & SCOPE_RPATH)) {
+    return;
+  }
+
+  BPFINTO(prog) {
+    _RET_EQ(__NR_chdir, SECCOMP_RET_ALLOW);
+  }
+}
 
 
 // File creation stuff
-static struct sock_filter cpath_filter[] = {
-  __RET_EQ(__NR_link,      SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_linkat,    SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_mkdirat,   SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_rename,    SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_renameat,  SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_rmdir,     SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_symlink,   SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_unlink,    SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_unlinkat,  SECCOMP_RET_ALLOW),
-};
+static void append_cpath_filter(unsigned int scopes, struct sock_fprog* prog) {
+  if (!(scopes & SCOPE_CPATH)) {
+    return;
+  }
+
+  BPFINTO(prog) {
+    _RET_EQ(__NR_link,      SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_linkat,    SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_mkdirat,   SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_rename,    SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_renameat,  SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_rmdir,     SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_symlink,   SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_unlink,    SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_unlinkat,  SECCOMP_RET_ALLOW);
+  }
+}
 
 
 // Special files
-static struct sock_filter dpath_filter[] = {
-  __RET_EQ(__NR_mknod,     SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_mknodat,   SECCOMP_RET_ALLOW),
-};
+static void append_dpath_filter(unsigned int scopes, struct sock_fprog* prog) {
+  if (!(scopes & SCOPE_DPATH)) {
+    return;
+  }
+
+  BPFINTO(prog) {
+    _RET_EQ(__NR_mknod,     SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_mknodat,   SECCOMP_RET_ALLOW);
+  }
+}
 
 
 // Internet (IPv4, IPv6)
-static struct sock_filter inet_filter[] = {
-  // socket(domain, type, protocol)
-  // domain == AF_INET || domain == AF_INET6
-  // type == SOCK_STREAM || type == SOCK_DGRAM
-  // type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
-  __JEQ(__NR_socket, 0, 7),  // if (nr != __NR_socket) goto exit
-  __LD_ARG(0),  // domain
-  __JEQ(AF_INET,  1, 0),  // if (domain==AF_INET ||
-  __JEQ(AF_INET6, 0, 3),  //     domain==AF_INET6) {
-  __LD_ARG(1),  // type, TODO: extra flags
-  __RET_EQ(SOCK_STREAM,    SECCOMP_RET_ALLOW),
-  __RET_EQ(SOCK_DGRAM,     SECCOMP_RET_ALLOW),
-  __LD_NR(),
-  // exit:
+static void append_inet_filter(unsigned int scopes, struct sock_fprog* prog) {
+  if (!(scopes & SCOPE_INET)) {
+    return;
+  }
 
-  __RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW),
-  // accept(socket, *address, *address_len)
+  BPFINTO(prog) {
+    // socket(domain, type, protocol)
+    // domain == AF_INET || domain == AF_INET6
+    // type == SOCK_STREAM || type == SOCK_DGRAM
+    // type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
+    _JEQ(__NR_socket, 0, 7);  // if (nr != __NR_socket) goto exit
+    _LD_ARG(0);  // domain
+    _JEQ(AF_INET,  1, 0);  // if (domain==AF_INET ||
+    _JEQ(AF_INET6, 0, 3);  //     domain==AF_INET6) {
+    _LD_ARG(1);  // type, TODO: extra flags
+    _RET_EQ(SOCK_STREAM,    SECCOMP_RET_ALLOW);
+    _RET_EQ(SOCK_DGRAM,     SECCOMP_RET_ALLOW);
+    _LD_NR();
+    // exit:
 
-  __RET_EQ(__NR_accept4,   SECCOMP_RET_ALLOW),
-  // accept4(socket, *address, *address_len, flags)
-  // flags can be SOCK_NONBLOCK, SOCK_CLOEXEC
+    _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW);
+    // accept(socket, *address, *address_len)
 
-  __RET_EQ(__NR_bind,      SECCOMP_RET_ALLOW),
-  // bind(socket, *address, *address_len)
+    _RET_EQ(__NR_accept4,   SECCOMP_RET_ALLOW);
+    // accept4(socket, *address, *address_len, flags)
+    // flags can be SOCK_NONBLOCK, SOCK_CLOEXEC
 
-  __RET_EQ(__NR_connect,   SECCOMP_RET_ALLOW),
-  // connect(socket, *address, *address_len)
+    _RET_EQ(__NR_bind,      SECCOMP_RET_ALLOW);
+    // bind(socket, *address, *address_len)
 
-  __RET_EQ(__NR_listen,    SECCOMP_RET_ALLOW),
-  // listen(socket, backlog)
-  // backlog is a hint
+    _RET_EQ(__NR_connect,   SECCOMP_RET_ALLOW);
+    // connect(socket, *address, *address_len)
+
+    _RET_EQ(__NR_listen,    SECCOMP_RET_ALLOW);
+    // listen(socket, backlog)
+    // backlog is a hint
 
 #ifdef __NR_recv
-  __RET_EQ(__NR_recv,      SECCOMP_RET_ALLOW),
-  // recv(socket, *buf, len, flags)
+    _RET_EQ(__NR_recv,      SECCOMP_RET_ALLOW);
+    // recv(socket, *buf, len, flags)
 #endif  // __NR_recv
 
 #ifdef __NR_send
-  __RET_EQ(__NR_send,      SECCOMP_RET_ALLOW),
-  // send(socket, *buf, len, flags)
+    _RET_EQ(__NR_send,      SECCOMP_RET_ALLOW);
+    // send(socket, *buf, len, flags)
 #endif  // __NR_send
 
-  __RET_EQ(__NR_recvfrom,  SECCOMP_RET_ALLOW),
-  // recvfrom(socket, *buf, len, flags, *src_addr, *addrlen)
+    _RET_EQ(__NR_recvfrom,  SECCOMP_RET_ALLOW);
+    // recvfrom(socket, *buf, len, flags, *src_addr, *addrlen)
 
-  __RET_EQ(__NR_sendto,    SECCOMP_RET_ALLOW),
-  // sendto(socket, *buf, len, flags, *dest_addr, *addrlen)
+    _RET_EQ(__NR_sendto,    SECCOMP_RET_ALLOW);
+    // sendto(socket, *buf, len, flags, *dest_addr, *addrlen)
 
-  __RET_EQ(__NR_recvmsg,   SECCOMP_RET_ALLOW),
-  // recvmsg(socket, *msg, flags)
+    _RET_EQ(__NR_recvmsg,   SECCOMP_RET_ALLOW);
+    // recvmsg(socket, *msg, flags)
 
-  __RET_EQ(__NR_sendmsg,   SECCOMP_RET_ALLOW),
-  // sendmsg(socket, *msg, flags)
+    _RET_EQ(__NR_sendmsg,   SECCOMP_RET_ALLOW);
+    // sendmsg(socket, *msg, flags)
 
-  // socketcall(2) is not used any more in modern glibc versions.
+    // socketcall(2) is not used any more in modern glibc versions.
 
-  // TODO: sendmmsg, setsockopt, getsockopt, socketpair, getpeername
+    // TODO: sendmmsg, setsockopt, getsockopt, socketpair, getpeername
+  }
 };
 
 
@@ -390,18 +414,10 @@ static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
   append_stdio_filter(scopes, prog);
   append_open_filter(scopes, prog);
   append_memory_filter(scopes, prog);
-  if (scopes & SCOPE_RPATH) {
-    APPEND_FILTER(prog, rpath_filter);
-  }
-  if (scopes & SCOPE_CPATH) {
-    APPEND_FILTER(prog, cpath_filter);
-  }
-  if (scopes & SCOPE_DPATH) {
-    APPEND_FILTER(prog, dpath_filter);
-  }
-  if (scopes & SCOPE_INET) {
-    APPEND_FILTER(prog, inet_filter);
-  }
+  append_rpath_filter(scopes, prog);
+  append_cpath_filter(scopes, prog);
+  append_dpath_filter(scopes, prog);
+  append_inet_filter(scopes, prog);
 
   APPEND_FILTER(prog, filter_suffix);
 }
