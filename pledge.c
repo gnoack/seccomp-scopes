@@ -258,6 +258,8 @@ static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
 
   // PROT_EXEC is *not* allowed.
   int permitted_prot_flags = PROT_READ | PROT_WRITE;
+
+  DECLARELABEL(out);
   BPFINTO(prog) {
     // Generic memory allocation
     _RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW);
@@ -282,14 +284,14 @@ static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
     _NOP();  // To keep jump sizes correct.
 #endif  // __NR_mmap
 
-    _JEQ(__NR_mprotect, 0 /* checkprot */, 4 /* out */);
+    _JEQ(__NR_mprotect, 0 /* checkprot */, ELSE_TO(out));
 
     // checkprot:
     _LD_ARG(2);  // acc := prot (same arg position on all three syscalls)
     _OR(permitted_prot_flags);
     _RET_EQ(permitted_prot_flags, SECCOMP_RET_ALLOW);  // 2 instructions
 
-    // out:
+    LABEL(out);
     _LD_NR();
   };
 }
@@ -347,6 +349,8 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   // Construct the filter
   DECLARELABEL(handle_open_and_creat);
   DECLARELABEL(entry);
+  DECLARELABEL(cleanup);
+  DECLARELABEL(cleanup2);
   BPFINTO(prog) {
     _JEQ(__NR_openat, 0, ELSE_TO(handle_open_and_creat));
     _LD_ARG(2);  // acc := flags (arg 2)
@@ -354,7 +358,7 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
 
     LABEL(handle_open_and_creat);
     _JEQ(__NR_open, 1, 0);
-    _JEQ(__NR_creat, 0, 10 /* cleanup */);
+    _JEQ(__NR_creat, 0, ELSE_TO(cleanup));
     _LD_ARG(1);  // acc := flags (arg 1)
 
     LABEL(entry);
@@ -364,14 +368,14 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
     // Check read/write modes
     _JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), 2, 0);  // jeq rdonly checkother
     _JEQ((may_write ? O_WRONLY : O_ACCMODE+1), 1, 0);  // jeq wronly checkother
-    _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, 4);  // jne rdwr   cleanup
+    _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, ELSE_TO(cleanup2));  // jne rdwr   cleanup
     // checkother:
     // if ((flags | permitted) == permitted) return SECCOMP_RET_ALLOW;
     _SET_A_TO_X();  // flags
     _OR(permitted_open_flags);
     _JEQ(permitted_open_flags, 0, 1);  // skip 1 if not equal
     _RET(SECCOMP_RET_ALLOW);
-    // cleanup:
+    LABEL(cleanup); LABEL(cleanup2);
     _LD_NR();
   }
 }
