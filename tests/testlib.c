@@ -26,8 +26,8 @@ static const char* current_test_promises = NULL;
 #define COLOR_OFF "\e[m"
 
 #define OK COLOR_GREEN "OK" COLOR_OFF
-#define BROKEN COLOR_GREEN "BROKEN" COLOR_OFF
-#define FAIL COLOR_GREEN "FAIL" COLOR_OFF
+#define BROKEN COLOR_RED "BROKEN" COLOR_OFF
+#define FAIL COLOR_RED "FAIL" COLOR_OFF
 
 static void failmsg(const char* msg) {
   puts("****************");
