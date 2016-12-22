@@ -260,11 +260,11 @@ static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
 
   // PROT_EXEC is *not* allowed.
   int permitted_prot_flags = PROT_READ | PROT_WRITE;
-  struct sock_filter memory_filter[] = {
+  BPFINTO(prog) {
     // Generic memory allocation
-    __RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW),
-    __RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW),
-    __RET_EQ(__NR_madvise,        SECCOMP_RET_ALLOW),
+    _RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_madvise,        SECCOMP_RET_ALLOW);
 
     // mmap(), mmap2(), mprotect() only allowed if prot is not PROT_EXEC
     //
@@ -275,26 +275,25 @@ static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
     //   }
     // }
 #ifdef __NR_mmap2
-    __JEQ(__NR_mmap2,    2 /* checkprot */, 0),
+    _JEQ(__NR_mmap2,    2 /* checkprot */, 0);
 #endif  // __NR_mmap2
 
 #ifdef __NR_mmap
-    __JEQ(__NR_mmap,     1 /* checkprot */, 0),
+    _JEQ(__NR_mmap,     1 /* checkprot */, 0);
 #else
-    __NOP(),  // To keep jump sizes correct.
+    _NOP();  // To keep jump sizes correct.
 #endif  // __NR_mmap
 
-    __JEQ(__NR_mprotect, 0 /* checkprot */, 4 /* out */),
+    _JEQ(__NR_mprotect, 0 /* checkprot */, 4 /* out */);
 
     // checkprot:
-    __LD_ARG(2),  // acc := prot (same arg position on all three syscalls)
-    __OR(permitted_prot_flags),
-    __RET_EQ(permitted_prot_flags, SECCOMP_RET_ALLOW),  // 2 instructions
+    _LD_ARG(2);  // acc := prot (same arg position on all three syscalls)
+    _OR(permitted_prot_flags);
+    _RET_EQ(permitted_prot_flags, SECCOMP_RET_ALLOW);  // 2 instructions
 
     // out:
-    __LD_NR(),
+    _LD_NR();
   };
-  APPEND_FILTER(prog, memory_filter);
 }
 
 static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
