@@ -1,4 +1,11 @@
 
+compatibility testing:
+
+  Set up a regression test machinery somehow, which pulls a trunk
+  version of glibc regularly and runs the full seccomp-scopes test
+  suite with it, so that the turnaround time is quick when glibc
+  breaks an assumption or starts using a new syscall.
+
 open() flags:
   O_ASYNC: for signal-driven I/O
   O_CLOEXEC: close-on-exec, same permissions as close() (none)
