@@ -38,6 +38,7 @@
 # define ARCH_NR	0
 #endif
 
+
 static void append_filter_prefix(struct sock_fprog* prog) {
   BPFINTO(prog) {
     // break on architecture mismatch
@@ -154,20 +155,25 @@ static void append_inet_filter(unsigned int scopes, struct sock_fprog* prog) {
     return;
   }
 
+  DECLARELABEL(not_socket);
+  DECLARELABEL(not_socket2);
   BPFINTO(prog) {
     // socket(domain, type, protocol)
-    // domain == AF_INET || domain == AF_INET6
-    // type == SOCK_STREAM || type == SOCK_DGRAM
-    // type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
-    _JEQ(__NR_socket, 0, 7);  // if (nr != __NR_socket) goto exit
+    // Should be allowed if:
+    //     domain == AF_INET || domain == AF_INET6
+    // and type == SOCK_STREAM || type == SOCK_DGRAM
+    //     and type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
+    _JEQ(__NR_socket, 0, ELSE_TO(not_socket));  // if (nr != __NR_socket) goto not_socket
     _LD_ARG(0);  // domain
-    _JEQ(AF_INET,  1, 0);  // if (domain==AF_INET ||
-    _JEQ(AF_INET6, 0, 3);  //     domain==AF_INET6) {
+    _JEQ(AF_INET,  1, 0);                     // if (domain==AF_INET ||
+    _JEQ(AF_INET6, 0, ELSE_TO(not_socket2));  //     domain==AF_INET6) {
     _LD_ARG(1);  // type, TODO: extra flags
     _RET_EQ(SOCK_STREAM,    SECCOMP_RET_ALLOW);
     _RET_EQ(SOCK_DGRAM,     SECCOMP_RET_ALLOW);
     _LD_NR();
     // exit:
+    LABEL(not_socket);
+    LABEL(not_socket2);
 
     _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW);
     // accept(socket, *address, *address_len)
