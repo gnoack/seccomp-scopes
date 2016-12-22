@@ -68,6 +68,12 @@
   };                                                 \
   struct sock_fprog* __filter = &name;
 
+// Use this to append to an existing sock_fprog*.
+#define BPFINTO(progptr)                        \
+  struct sock_filter* __code = progptr->filter; \
+  struct sock_fprog* __filter = progptr;
+
+
 // -------------------------------------------------------------------
 // Tracking labels in BPF code
 // -------------------------------------------------------------------

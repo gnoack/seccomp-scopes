@@ -24,6 +24,8 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "bpf_helper.h"
+
 #define __LD_STRUCT_VALUE(field)                                         \
   BPF_STMT(BPF_LD+BPF_W+BPF_ABS,                                        \
            offsetof(struct seccomp_data, field))
@@ -242,7 +244,9 @@ static int parse_promises(const char* promises, unsigned int* scope_flags) {
 static void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t filter_size) {
   size_t old_size = prog->len;
   prog->len += filter_size;
-  prog->filter = reallocarray(prog->filter, sizeof(prog->filter[0]), prog->len);
+  if (prog->len >= BPFSIZE) {
+    errx(1, "BPF code using too much space.");
+  }
   memcpy(prog->filter + old_size, filter, filter_size * sizeof(filter[0]));
 }
 
@@ -344,33 +348,35 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   }
 
   // Construct the filter
-  struct sock_filter openflags_filter[] = {
-    __JEQ(__NR_openat, 0, 2),
-    __LD_ARG(2),  // acc := flags (arg 2)
-    __JMP(3 /* entry */),
+  DECLARELABEL(handle_open_and_creat);
+  DECLARELABEL(entry);
+  BPFINTO(prog) {
+    _JEQ(__NR_openat, 0, ELSE_TO(handle_open_and_creat));
+    _LD_ARG(2);  // acc := flags (arg 2)
+    _JMP(TO(entry));
 
-    __JEQ(__NR_open, 1, 0),
-    __JEQ(__NR_creat, 0, 10 /* cleanup */),
-    __LD_ARG(1),  // acc := flags (arg 1)
+    LABEL(handle_open_and_creat);
+    _JEQ(__NR_open, 1, 0);
+    _JEQ(__NR_creat, 0, 10 /* cleanup */);
+    _LD_ARG(1);  // acc := flags (arg 1)
 
-    // entry:
-    __SET_X_TO_A(),  // store X := flags
+    LABEL(entry);
+    _SET_X_TO_A();  // store X := flags
     // acc := flags & O_ACCMODE
-    __AND(O_ACCMODE),
+    _AND(O_ACCMODE);
     // Check read/write modes
-    __JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), 2, 0),  // jeq rdonly checkother
-    __JEQ((may_write ? O_WRONLY : O_ACCMODE+1), 1, 0),  // jeq wronly checkother
-    __JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, 4),  // jne rdwr   cleanup
+    _JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), 2, 0);  // jeq rdonly checkother
+    _JEQ((may_write ? O_WRONLY : O_ACCMODE+1), 1, 0);  // jeq wronly checkother
+    _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, 4);  // jne rdwr   cleanup
     // checkother:
     // if ((flags | permitted) == permitted) return SECCOMP_RET_ALLOW;
-    __SET_A_TO_X(),  // flags
-    __OR(permitted_open_flags),
-    __JEQ(permitted_open_flags, 0, 1),  // skip 1 if not equal
-    __RET(SECCOMP_RET_ALLOW),
+    _SET_A_TO_X();  // flags
+    _OR(permitted_open_flags);
+    _JEQ(permitted_open_flags, 0, 1);  // skip 1 if not equal
+    _RET(SECCOMP_RET_ALLOW);
     // cleanup:
-    __LD_NR(),
-  };
-  APPEND_FILTER(prog, openflags_filter);
+    _LD_NR();
+  }
 }
 
 static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
@@ -400,9 +406,10 @@ static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
 
 int pledge(const char* promises, const char* paths[]) {
   int retval = 0;
+  struct sock_filter filter_code[BPFSIZE];
   struct sock_fprog prog = {
     .len = 0,
-    .filter = malloc(0),  // TODO: Error checking.
+    .filter = filter_code,
   };
 
   if (paths) {
@@ -436,6 +443,5 @@ int pledge(const char* promises, const char* paths[]) {
   retval = -1;
 
  success:
-  free(prog.filter);
   return retval;
 }
