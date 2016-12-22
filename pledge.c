@@ -63,23 +63,27 @@
 # define ARCH_NR	0
 #endif
 
-static struct sock_filter filter_prefix[] = {
-  // break on architecture mismatch
-  __LD_ARCH(),
-  __RET_NEQ(ARCH_NR,        SECCOMP_RET_KILL),
-  // load the syscall number
-  __LD_NR(),
+static void append_filter_prefix(struct sock_fprog* prog) {
+  BPFINTO(prog) {
+    // break on architecture mismatch
+    _LD_ARCH();
+    _RET_NEQ(ARCH_NR,        SECCOMP_RET_KILL);
+    // load the syscall number
+    _LD_NR();
+  }
 };
 
 
-static struct sock_filter filter_suffix[] = {
-  // exit and exit_group are always allowed
-  __RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW),
-  __RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW),
-  // gettimeofday usually gets called through vdso(7)
-  __RET_EQ(__NR_gettimeofday,   SECCOMP_RET_ALLOW),
-  // otherwise, break
-  __RET(SECCOMP_RET_TRAP),
+static void append_filter_suffix(struct sock_fprog* prog) {
+  BPFINTO(prog) {
+    // exit and exit_group are always allowed
+    _RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW);
+    // gettimeofday usually gets called through vdso(7)
+    _RET_EQ(__NR_gettimeofday,   SECCOMP_RET_ALLOW);
+    // otherwise, break
+    _RET(SECCOMP_RET_TRAP);
+  }
 };
 
 
@@ -409,7 +413,7 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
 }
 
 static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
-  APPEND_FILTER(prog, filter_prefix);
+  append_filter_prefix(prog);
 
   append_stdio_filter(scopes, prog);
   append_open_filter(scopes, prog);
@@ -419,7 +423,7 @@ static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
   append_dpath_filter(scopes, prog);
   append_inet_filter(scopes, prog);
 
-  APPEND_FILTER(prog, filter_suffix);
+  append_filter_suffix(prog);
 }
 
 
