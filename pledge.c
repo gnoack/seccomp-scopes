@@ -250,17 +250,6 @@ static int parse_promises(const char* promises, unsigned int* scope_flags) {
   return 0;
 }
 
-static void append_filter(struct sock_fprog* prog, struct sock_filter* filter, size_t filter_size) {
-  size_t old_size = prog->len;
-  prog->len += filter_size;
-  if (prog->len >= BPFSIZE) {
-    errx(1, "BPF code using too much space.");
-  }
-  memcpy(prog->filter + old_size, filter, filter_size * sizeof(filter[0]));
-}
-
-#define APPEND_FILTER(prog, filter) \
-  append_filter(prog, filter, sizeof(filter)/sizeof(filter[0]))
 
 static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
   if (!(scopes & SCOPE_STDIO)) {
