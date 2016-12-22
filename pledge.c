@@ -215,42 +215,6 @@ static void append_inet_filter(unsigned int scopes, struct sock_fprog* prog) {
 };
 
 
-/* Write OR'd SCOPE_* values to scope_flags, or returns -1. */
-static int parse_promises(const char* promises, unsigned int* scope_flags) {
-  unsigned int flags = 0;
-
-  char* promises_copy = strdup(promises);
-  char* strtok_arg0 = promises_copy;
-  char* saveptr = NULL;
-  char* item = NULL;
-  while ((item = strtok_r(strtok_arg0, " ", &saveptr))) {
-    strtok_arg0 = NULL;
-
-    // TODO: This could be a lookup map.
-    if (!strcmp(item, "stdio")) {
-      flags |= SCOPE_STDIO;
-    } else if (!strcmp(item, "rpath")) {
-      flags |= SCOPE_RPATH;
-    } else if (!strcmp(item, "wpath")) {
-      flags |= SCOPE_WPATH;
-    } else if (!strcmp(item, "cpath")) {
-      flags |= SCOPE_CPATH;
-    } else if (!strcmp(item, "dpath")) {
-      flags |= SCOPE_DPATH;
-    } else if (!strcmp(item, "inet")) {
-      flags |= SCOPE_INET;
-    } else {
-      errno = EINVAL;
-      free(promises_copy);
-      return -1;
-    }
-  }
-  *scope_flags = flags;
-  free(promises_copy);
-  return 0;
-}
-
-
 static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
   if (!(scopes & SCOPE_STDIO)) {
     return;
@@ -392,6 +356,42 @@ static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
   append_inet_filter(scopes, prog);
 
   append_filter_suffix(prog);
+}
+
+
+/* Write OR'd SCOPE_* values to scope_flags, or returns -1. */
+static int parse_promises(const char* promises, unsigned int* scope_flags) {
+  unsigned int flags = 0;
+
+  char* promises_copy = strdup(promises);
+  char* strtok_arg0 = promises_copy;
+  char* saveptr = NULL;
+  char* item = NULL;
+  while ((item = strtok_r(strtok_arg0, " ", &saveptr))) {
+    strtok_arg0 = NULL;
+
+    // TODO: This could be a lookup map.
+    if (!strcmp(item, "stdio")) {
+      flags |= SCOPE_STDIO;
+    } else if (!strcmp(item, "rpath")) {
+      flags |= SCOPE_RPATH;
+    } else if (!strcmp(item, "wpath")) {
+      flags |= SCOPE_WPATH;
+    } else if (!strcmp(item, "cpath")) {
+      flags |= SCOPE_CPATH;
+    } else if (!strcmp(item, "dpath")) {
+      flags |= SCOPE_DPATH;
+    } else if (!strcmp(item, "inet")) {
+      flags |= SCOPE_INET;
+    } else {
+      errno = EINVAL;
+      free(promises_copy);
+      return -1;
+    }
+  }
+  *scope_flags = flags;
+  free(promises_copy);
+  return 0;
 }
 
 
