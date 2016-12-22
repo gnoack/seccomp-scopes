@@ -15,6 +15,9 @@ void test_printing() {
 }
 
 void test_alloc_and_free() {
+  // TODO(gnoack): malloc() and free() get optimized away in -O1,
+  // which makes the test useless.  Find out how to enforce these
+  // calls.
   void* x = malloc(2000 * 1024 * 20);
   free(x);
 }
