@@ -21,6 +21,14 @@ static char* argv0 = NULL;
 static const char* current_test_name = NULL;
 static const char* current_test_promises = NULL;
 
+#define COLOR_GREEN "\e[0;32m"
+#define COLOR_RED "\e[0;31m"
+#define COLOR_OFF "\e[m"
+
+#define OK COLOR_GREEN "OK" COLOR_OFF
+#define BROKEN COLOR_GREEN "BROKEN" COLOR_OFF
+#define FAIL COLOR_GREEN "FAIL" COLOR_OFF
+
 static void failmsg(const char* msg) {
   puts("****************");
   puts(" F A I L U R E");
@@ -50,7 +58,7 @@ static void pledge_run(const char* proc_name, test_proc proc,
          proc_name, promises);
   fflush(stdout);
   if (pledge(promises, NULL) == -1) {
-    errx(1, "Could not pledge: BROKEN");
+    errx(1, "Could not pledge: " BROKEN);
   }
   proc();
 }
@@ -96,29 +104,29 @@ static void fork_pledge_wait(const char* name,
 static void expect_ok_status(int status) {
   if (WIFEXITED(status)) {
     if (WEXITSTATUS(status)) {
-      errx(1, "Subprocess exited with %d status: BROKEN", WEXITSTATUS(status));
+      errx(1, "Subprocess exited with %d status: " BROKEN, WEXITSTATUS(status));
     } else {
-      puts("Exited normally: OK");
+      puts("Exited normally: " OK);
     }
   } else if (WIFSIGNALED(status)) {
-    failmsg("Unexpected sandbox violation: FAIL");
+    failmsg("Unexpected sandbox violation: " FAIL);
   } else {
-    errx(1, "Subprocess neither exited nor stopped: BROKEN");
+    errx(1, "Subprocess neither exited nor stopped: " BROKEN);
   }
 }
 
 static void expect_crash_status(int status) {
   if (WIFEXITED(status)) {
     if (WEXITSTATUS(status)) {
-      printf("Subprocess exited with %d status: FAIL\n", WEXITSTATUS(status));
-      failmsg("Expected sandbox violation, got exit() with error status: FAIL");
+      printf("Subprocess exited with %d status: " FAIL "\n", WEXITSTATUS(status));
+      failmsg("Expected sandbox violation, got exit() with error status: " FAIL);
     } else {
-      failmsg("Program worked but sandbox should have prevented it: FAIL");
+      failmsg("Program worked but sandbox should have prevented it: " FAIL);
     }
   } else if (WIFSIGNALED(status)) {
-    puts("Sandbox violation correctly caught: OK");
+    puts("Sandbox violation correctly caught: " OK);
   } else {
-    errx(1, "Subprocess neither exited nor stopped: BROKEN");
+    errx(1, "Subprocess neither exited nor stopped: " BROKEN);
   }
 }
 
