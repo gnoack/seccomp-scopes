@@ -35,49 +35,49 @@
 # define ARCH_NR	0
 #endif
 
-#define _LD_STRUCT_VALUE(field)                                         \
+#define __LD_STRUCT_VALUE(field)                                         \
   BPF_STMT(BPF_LD+BPF_W+BPF_ABS,                                        \
            offsetof(struct seccomp_data, field))
 
-#define _JMP(j)              BPF_STMT(BPF_JMP+BPF_JA+BPF_K,  (j))
-#define _JEQ(value, jt, jf)  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), (jt), (jf))
-#define _RET(value)          BPF_STMT(BPF_RET+BPF_K,         (value))
-#define _OR(value)           BPF_STMT(BPF_ALU+BPF_OR+BPF_K,  (value))
-#define _AND(value)          BPF_STMT(BPF_ALU+BPF_AND+BPF_K, (value))
-#define _SET_X_TO_A()        BPF_STMT(BPF_MISC+BPF_TAX,      0)
-#define _SET_A_TO_X()        BPF_STMT(BPF_MISC+BPF_TXA,      0)
-#define _NOP()               _JMP(0)  // There is probably another way.
+#define __JMP(j)              BPF_STMT(BPF_JMP+BPF_JA+BPF_K,  (j))
+#define __JEQ(value, jt, jf)  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), (jt), (jf))
+#define __RET(value)          BPF_STMT(BPF_RET+BPF_K,         (value))
+#define __OR(value)           BPF_STMT(BPF_ALU+BPF_OR+BPF_K,  (value))
+#define __AND(value)          BPF_STMT(BPF_ALU+BPF_AND+BPF_K, (value))
+#define __SET_X_TO_A()        BPF_STMT(BPF_MISC+BPF_TAX,      0)
+#define __SET_A_TO_X()        BPF_STMT(BPF_MISC+BPF_TXA,      0)
+#define __NOP()               __JMP(0)  // There is probably another way.
 
-#define _LD_ARCH() _LD_STRUCT_VALUE(arch)
-#define _LD_NR() _LD_STRUCT_VALUE(nr)
-#define _LD_ARG(n) _LD_STRUCT_VALUE(args[n])
+#define __LD_ARCH() __LD_STRUCT_VALUE(arch)
+#define __LD_NR() __LD_STRUCT_VALUE(nr)
+#define __LD_ARG(n) __LD_STRUCT_VALUE(args[n])
 
-#define _RET_EQ(value, result) \
-  _JEQ((value), 0, 1),         \
-  _RET((result))
+#define __RET_EQ(value, result) \
+  __JEQ((value), 0, 1),         \
+  __RET((result))
 
-#define _RET_NEQ(value, result) \
-  _JEQ((value), 1, 0),          \
-  _RET((result))
+#define __RET_NEQ(value, result) \
+  __JEQ((value), 1, 0),          \
+  __RET((result))
 
 
 static struct sock_filter filter_prefix[] = {
   // break on architecture mismatch
-  _LD_ARCH(),
-  _RET_NEQ(ARCH_NR,        SECCOMP_RET_KILL),
+  __LD_ARCH(),
+  __RET_NEQ(ARCH_NR,        SECCOMP_RET_KILL),
   // load the syscall number
-  _LD_NR(),
+  __LD_NR(),
 };
 
 
 static struct sock_filter filter_suffix[] = {
   // exit and exit_group are always allowed
-  _RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_exit,       SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_exit_group, SECCOMP_RET_ALLOW),
   // gettimeofday usually gets called through vdso(7)
-  _RET_EQ(__NR_gettimeofday,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_gettimeofday,   SECCOMP_RET_ALLOW),
   // otherwise, break
-  _RET(SECCOMP_RET_TRAP),
+  __RET(SECCOMP_RET_TRAP),
 };
 
 
@@ -92,54 +92,54 @@ static struct sock_filter filter_suffix[] = {
 
 static struct sock_filter stdio_filter[] = {
   // Reading and writing
-  _RET_EQ(__NR_read,           SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_readv,          SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_pread64,        SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_preadv,         SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_preadv2,        SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_write,          SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_writev,         SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_pwrite64,       SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_pwritev,        SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_pwritev2,       SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_read,           SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_readv,          SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_pread64,        SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_preadv,         SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_preadv2,        SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_write,          SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_writev,         SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_pwrite64,       SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_pwritev,        SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_pwritev2,       SECCOMP_RET_ALLOW),
   // Stuff
-  _RET_EQ(__NR_fstat,          SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_fstat,          SECCOMP_RET_ALLOW),
 #ifdef __NR_fstat64
-  _RET_EQ(__NR_fstat64,        SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_fstat64,        SECCOMP_RET_ALLOW),
 #endif  // __NR_fstat64
   // Time
-  _RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_clock_getres,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_clock_getres,   SECCOMP_RET_ALLOW),
   // Closing file descriptors
-  _RET_EQ(__NR_close,          SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_close,          SECCOMP_RET_ALLOW),
 };
 
 
 // Opening paths read-only
 static struct sock_filter rpath_filter[] = {
-  _RET_EQ(__NR_chdir, SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_chdir, SECCOMP_RET_ALLOW),
 };
 
 
 // File creation stuff
 static struct sock_filter cpath_filter[] = {
-  _RET_EQ(__NR_link,      SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_linkat,    SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_mkdirat,   SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_rename,    SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_renameat,  SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_rmdir,     SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_symlink,   SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_unlink,    SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_unlinkat,  SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_link,      SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_linkat,    SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_mkdir,     SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_mkdirat,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_rename,    SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_renameat,  SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_rmdir,     SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_symlink,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_unlink,    SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_unlinkat,  SECCOMP_RET_ALLOW),
 };
 
 
 // Special files
 static struct sock_filter dpath_filter[] = {
-  _RET_EQ(__NR_mknod,     SECCOMP_RET_ALLOW),
-  _RET_EQ(__NR_mknodat,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_mknod,     SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_mknodat,   SECCOMP_RET_ALLOW),
 };
 
 
@@ -149,53 +149,53 @@ static struct sock_filter inet_filter[] = {
   // domain == AF_INET || domain == AF_INET6
   // type == SOCK_STREAM || type == SOCK_DGRAM
   // type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
-  _JEQ(__NR_socket, 0, 7),  // if (nr != __NR_socket) goto exit
-  _LD_ARG(0),  // domain
-  _JEQ(AF_INET,  1, 0),  // if (domain==AF_INET ||
-  _JEQ(AF_INET6, 0, 3),  //     domain==AF_INET6) {
-  _LD_ARG(1),  // type, TODO: extra flags
-  _RET_EQ(SOCK_STREAM,    SECCOMP_RET_ALLOW),
-  _RET_EQ(SOCK_DGRAM,     SECCOMP_RET_ALLOW),
-  _LD_NR(),
+  __JEQ(__NR_socket, 0, 7),  // if (nr != __NR_socket) goto exit
+  __LD_ARG(0),  // domain
+  __JEQ(AF_INET,  1, 0),  // if (domain==AF_INET ||
+  __JEQ(AF_INET6, 0, 3),  //     domain==AF_INET6) {
+  __LD_ARG(1),  // type, TODO: extra flags
+  __RET_EQ(SOCK_STREAM,    SECCOMP_RET_ALLOW),
+  __RET_EQ(SOCK_DGRAM,     SECCOMP_RET_ALLOW),
+  __LD_NR(),
   // exit:
 
-  _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW),
   // accept(socket, *address, *address_len)
 
-  _RET_EQ(__NR_accept4,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_accept4,   SECCOMP_RET_ALLOW),
   // accept4(socket, *address, *address_len, flags)
   // flags can be SOCK_NONBLOCK, SOCK_CLOEXEC
 
-  _RET_EQ(__NR_bind,      SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_bind,      SECCOMP_RET_ALLOW),
   // bind(socket, *address, *address_len)
 
-  _RET_EQ(__NR_connect,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_connect,   SECCOMP_RET_ALLOW),
   // connect(socket, *address, *address_len)
 
-  _RET_EQ(__NR_listen,    SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_listen,    SECCOMP_RET_ALLOW),
   // listen(socket, backlog)
   // backlog is a hint
 
 #ifdef __NR_recv
-  _RET_EQ(__NR_recv,      SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_recv,      SECCOMP_RET_ALLOW),
   // recv(socket, *buf, len, flags)
 #endif  // __NR_recv
 
 #ifdef __NR_send
-  _RET_EQ(__NR_send,      SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_send,      SECCOMP_RET_ALLOW),
   // send(socket, *buf, len, flags)
 #endif  // __NR_send
 
-  _RET_EQ(__NR_recvfrom,  SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_recvfrom,  SECCOMP_RET_ALLOW),
   // recvfrom(socket, *buf, len, flags, *src_addr, *addrlen)
 
-  _RET_EQ(__NR_sendto,    SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_sendto,    SECCOMP_RET_ALLOW),
   // sendto(socket, *buf, len, flags, *dest_addr, *addrlen)
 
-  _RET_EQ(__NR_recvmsg,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_recvmsg,   SECCOMP_RET_ALLOW),
   // recvmsg(socket, *msg, flags)
 
-  _RET_EQ(__NR_sendmsg,   SECCOMP_RET_ALLOW),
+  __RET_EQ(__NR_sendmsg,   SECCOMP_RET_ALLOW),
   // sendmsg(socket, *msg, flags)
 
   // socketcall(2) is not used any more in modern glibc versions.
@@ -258,9 +258,9 @@ static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
   int permitted_prot_flags = PROT_READ | PROT_WRITE;
   struct sock_filter memory_filter[] = {
     // Generic memory allocation
-    _RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW),
-    _RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW),
-    _RET_EQ(__NR_madvise,        SECCOMP_RET_ALLOW),
+    __RET_EQ(__NR_brk,            SECCOMP_RET_ALLOW),
+    __RET_EQ(__NR_munmap,         SECCOMP_RET_ALLOW),
+    __RET_EQ(__NR_madvise,        SECCOMP_RET_ALLOW),
 
     // mmap(), mmap2(), mprotect() only allowed if prot is not PROT_EXEC
     //
@@ -271,24 +271,24 @@ static void append_memory_filter(unsigned int scopes, struct sock_fprog* prog) {
     //   }
     // }
 #ifdef __NR_mmap2
-    _JEQ(__NR_mmap2,    2 /* checkprot */, 0),
+    __JEQ(__NR_mmap2,    2 /* checkprot */, 0),
 #endif  // __NR_mmap2
 
 #ifdef __NR_mmap
-    _JEQ(__NR_mmap,     1 /* checkprot */, 0),
+    __JEQ(__NR_mmap,     1 /* checkprot */, 0),
 #else
-    _NOP(),  // To keep jump sizes correct.
+    __NOP(),  // To keep jump sizes correct.
 #endif  // __NR_mmap
 
-    _JEQ(__NR_mprotect, 0 /* checkprot */, 4 /* out */),
+    __JEQ(__NR_mprotect, 0 /* checkprot */, 4 /* out */),
 
     // checkprot:
-    _LD_ARG(2),  // acc := prot (same arg position on all three syscalls)
-    _OR(permitted_prot_flags),
-    _RET_EQ(permitted_prot_flags, SECCOMP_RET_ALLOW),  // 2 instructions
+    __LD_ARG(2),  // acc := prot (same arg position on all three syscalls)
+    __OR(permitted_prot_flags),
+    __RET_EQ(permitted_prot_flags, SECCOMP_RET_ALLOW),  // 2 instructions
 
     // out:
-    _LD_NR(),
+    __LD_NR(),
   };
   APPEND_FILTER(prog, memory_filter);
 }
@@ -345,30 +345,30 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
 
   // Construct the filter
   struct sock_filter openflags_filter[] = {
-    _JEQ(__NR_openat, 0, 2),
-    _LD_ARG(2),  // acc := flags (arg 2)
-    _JMP(3 /* entry */),
+    __JEQ(__NR_openat, 0, 2),
+    __LD_ARG(2),  // acc := flags (arg 2)
+    __JMP(3 /* entry */),
 
-    _JEQ(__NR_open, 1, 0),
-    _JEQ(__NR_creat, 0, 10 /* cleanup */),
-    _LD_ARG(1),  // acc := flags (arg 1)
+    __JEQ(__NR_open, 1, 0),
+    __JEQ(__NR_creat, 0, 10 /* cleanup */),
+    __LD_ARG(1),  // acc := flags (arg 1)
 
     // entry:
-    _SET_X_TO_A(),  // store X := flags
+    __SET_X_TO_A(),  // store X := flags
     // acc := flags & O_ACCMODE
-    _AND(O_ACCMODE),
+    __AND(O_ACCMODE),
     // Check read/write modes
-    _JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), 2, 0),  // jeq rdonly checkother
-    _JEQ((may_write ? O_WRONLY : O_ACCMODE+1), 1, 0),  // jeq wronly checkother
-    _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, 4),  // jne rdwr   cleanup
+    __JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), 2, 0),  // jeq rdonly checkother
+    __JEQ((may_write ? O_WRONLY : O_ACCMODE+1), 1, 0),  // jeq wronly checkother
+    __JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, 4),  // jne rdwr   cleanup
     // checkother:
     // if ((flags | permitted) == permitted) return SECCOMP_RET_ALLOW;
-    _SET_A_TO_X(),  // flags
-    _OR(permitted_open_flags),
-    _JEQ(permitted_open_flags, 0, 1),  // skip 1 if not equal
-    _RET(SECCOMP_RET_ALLOW),
+    __SET_A_TO_X(),  // flags
+    __OR(permitted_open_flags),
+    __JEQ(permitted_open_flags, 0, 1),  // skip 1 if not equal
+    __RET(SECCOMP_RET_ALLOW),
     // cleanup:
-    _LD_NR(),
+    __LD_NR(),
   };
   APPEND_FILTER(prog, openflags_filter);
 }
