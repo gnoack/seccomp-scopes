@@ -123,6 +123,6 @@ typedef struct {
       __code[csip].jf = __filter->len - csip - 1;                       \
       break;                                                            \
     default:                                                            \
-      errx(1, "BADBPF: Unknown callsite type. (Should not happen.)");   \
+      errx(1, "BADBPF: Unknown callsite type. (Is " #name " called?)"); \
     }                                                                   \
   }
