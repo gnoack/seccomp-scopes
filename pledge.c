@@ -26,31 +26,6 @@
 
 #include "bpf_helper.h"
 
-#define __LD_STRUCT_VALUE(field)                                         \
-  BPF_STMT(BPF_LD+BPF_W+BPF_ABS,                                        \
-           offsetof(struct seccomp_data, field))
-
-#define __JMP(j)              BPF_STMT(BPF_JMP+BPF_JA+BPF_K,  (j))
-#define __JEQ(value, jt, jf)  BPF_JUMP(BPF_JMP+BPF_JEQ+BPF_K, (value), (jt), (jf))
-#define __RET(value)          BPF_STMT(BPF_RET+BPF_K,         (value))
-#define __OR(value)           BPF_STMT(BPF_ALU+BPF_OR+BPF_K,  (value))
-#define __AND(value)          BPF_STMT(BPF_ALU+BPF_AND+BPF_K, (value))
-#define __SET_X_TO_A()        BPF_STMT(BPF_MISC+BPF_TAX,      0)
-#define __SET_A_TO_X()        BPF_STMT(BPF_MISC+BPF_TXA,      0)
-#define __NOP()               __JMP(0)  // There is probably another way.
-
-#define __LD_ARCH() __LD_STRUCT_VALUE(arch)
-#define __LD_NR() __LD_STRUCT_VALUE(nr)
-#define __LD_ARG(n) __LD_STRUCT_VALUE(args[n])
-
-#define __RET_EQ(value, result) \
-  __JEQ((value), 0, 1),         \
-  __RET((result))
-
-#define __RET_NEQ(value, result) \
-  __JEQ((value), 1, 0),          \
-  __RET((result))
-
 
 #if defined(__i386__)
 # define ARCH_NR	AUDIT_ARCH_I386
