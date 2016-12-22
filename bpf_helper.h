@@ -11,7 +11,8 @@
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 
-#define BPFSIZE 20
+// TODO(gnoack): This is very inflexible and not clever at all.
+#define BPFSIZE 100
 
 #define _BPF_STMT(...) do {                                             \
     __code[__filter->len] = (struct sock_filter) BPF_STMT(__VA_ARGS__); \
