@@ -156,7 +156,6 @@ static void append_inet_filter(unsigned int scopes, struct sock_fprog* prog) {
   }
 
   DECLARELABEL(not_socket);
-  DECLARELABEL(not_socket2);
   BPFINTO(prog) {
     // socket(domain, type, protocol)
     // Should be allowed if:
@@ -166,14 +165,13 @@ static void append_inet_filter(unsigned int scopes, struct sock_fprog* prog) {
     _JEQ(__NR_socket, 0, ELSE_TO(not_socket));  // if (nr != __NR_socket) goto not_socket
     _LD_ARG(0);  // domain
     _JEQ(AF_INET,  1, 0);                     // if (domain==AF_INET ||
-    _JEQ(AF_INET6, 0, ELSE_TO(not_socket2));  //     domain==AF_INET6) {
+    _JEQ(AF_INET6, 0, ELSE_TO(not_socket));   //     domain==AF_INET6) {
     _LD_ARG(1);  // type, TODO: extra flags
     _RET_EQ(SOCK_STREAM,    SECCOMP_RET_ALLOW);
     _RET_EQ(SOCK_DGRAM,     SECCOMP_RET_ALLOW);
     _LD_NR();
     // exit:
     LABEL(not_socket);
-    LABEL(not_socket2);
 
     _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW);
     // accept(socket, *address, *address_len)
@@ -317,10 +315,10 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   }
 
   // Construct the filter
-  DECLARELABEL(handle_open_and_creat);
-  DECLARELABEL(entry);
+  DECLARELABEL(checkother);
   DECLARELABEL(cleanup);
-  DECLARELABEL(cleanup2);
+  DECLARELABEL(entry);
+  DECLARELABEL(handle_open_and_creat);
   BPFINTO(prog) {
     _JEQ(__NR_openat, 0, ELSE_TO(handle_open_and_creat));
     _LD_ARG(2);  // acc := flags (arg 2)
@@ -336,16 +334,17 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
     // acc := flags & O_ACCMODE
     _AND(O_ACCMODE);
     // Check read/write modes
-    _JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), 2, 0);  // jeq rdonly checkother
-    _JEQ((may_write ? O_WRONLY : O_ACCMODE+1), 1, 0);  // jeq wronly checkother
-    _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), 0, ELSE_TO(cleanup2));  // jne rdwr   cleanup
-    // checkother:
+    _JEQ((may_read  ? O_RDONLY : O_ACCMODE+1), THEN_TO(checkother), 0);  // jeq rdonly checkother
+    _JEQ((may_write ? O_WRONLY : O_ACCMODE+1), THEN_TO(checkother), 0);  // jeq wronly checkother
+    _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), THEN_TO(checkother), ELSE_TO(cleanup));  // jne rdwr   cleanup
+
+    LABEL(checkother);
     // if ((flags | permitted) == permitted) return SECCOMP_RET_ALLOW;
     _SET_A_TO_X();  // flags
     _OR(permitted_open_flags);
-    _JEQ(permitted_open_flags, 0, 1);  // skip 1 if not equal
+    _JEQ(permitted_open_flags, 0, ELSE_TO(cleanup));  // skip 1 if not equal
     _RET(SECCOMP_RET_ALLOW);
-    LABEL(cleanup); LABEL(cleanup2);
+    LABEL(cleanup);
     _LD_NR();
   }
 }

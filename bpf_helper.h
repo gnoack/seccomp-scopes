@@ -117,6 +117,7 @@ typedef struct {
 #define THEN_TO(name) TO_GENERIC(name, JT)
 #define ELSE_TO(name) TO_GENERIC(name, JF)
 
+// TODO(gnoack): Detect unknown callsite type at compile time.
 #define LABEL(name)                                                     \
   for (int i=0; i<__##name##_callsites.count; i++) {                    \
     int csip = __##name##_callsites.callsite[i].ip;                     \
@@ -131,6 +132,6 @@ typedef struct {
       __code[csip].jf = __filter->len - csip - 1;                       \
       break;                                                            \
     default:                                                            \
-      errx(1, "BADBPF: Unknown callsite type. (Is " #name " called?)"); \
+      errx(1, "Unknown callsite type. (Is " #name " called?)");         \
     }                                                                   \
   }
