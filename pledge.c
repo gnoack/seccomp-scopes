@@ -424,11 +424,12 @@ int pledge(const char* promises, const char* paths[]) {
   }
   fill_filter(scopes, &prog);
 
-  // Actually enable this.
+  // Same privilege restrictions should apply to child processes.
   if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
     errno = EPERM;  // TODO: Find better error code.
     goto error;
   }
+  // Enable the filter.
   if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
     errno = EPERM;
     goto error;
