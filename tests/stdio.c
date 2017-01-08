@@ -14,11 +14,13 @@ void test_printing() {
   printf("\n");
 }
 
+void* (*my_calloc)(size_t, size_t) = calloc;
+
 void test_alloc_and_free() {
-  // TODO(gnoack): malloc() and free() get optimized away in -O1,
-  // which makes the test useless.  Find out how to enforce these
-  // calls.
-  void* x = malloc(2000 * 1024 * 20);
+  // Note: Using my own pointer to calloc.  Without this, the compiler
+  // notices that this code is essentially a noop and optimized both
+  // the malloc and the free away, rendering this test useless in -O1.
+  void* x = my_calloc(2000, 1024 * 20);
   free(x);
 }
 

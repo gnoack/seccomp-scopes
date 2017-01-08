@@ -1,6 +1,6 @@
 # TODO: Deduplicate flags between makefiles (makefile include?)
 LDFLAGS= -lc -lgcc -lbsd
-CFLAGS= -fPIC -g
+CFLAGS= -fPIC -g -O1
 
 LIBS = ../pledge.o testlib.o
 CFLAGS += -I..
@@ -19,7 +19,10 @@ stdio: stdio.o $(LIBS)
 
 TEST_BINARIES = paths stdio inet bpfhelper
 
-test: $(TEST_BINARIES)
+badbpftest: ../pledge.o checkopt.sh
+	./checkopt.sh ../pledge.o
+
+test: $(TEST_BINARIES) badbpftest
 	./inet
 	./paths
 	./stdio
