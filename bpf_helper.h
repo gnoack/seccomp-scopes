@@ -15,11 +15,12 @@
 // TODO(gnoack): Support bpf filters of arbitrary size.
 #define BPFSIZE 100
 
+// TODO(gnoack): This should ideally be checked at compile time.
 #define _BPF_STMT(...) do {                                             \
     __code[__filter->len] = (struct sock_filter) BPF_STMT(__VA_ARGS__); \
     __filter->len++;                                                    \
     if (__filter->len >= BPFSIZE) {                                     \
-      errx(1, "BADBPF: BPF code using too much space.");                \
+      errx(1, "BPF code using too much space.");                        \
     }                                                                   \
   } while(0);
 
@@ -27,7 +28,7 @@
     __code[__filter->len] = (struct sock_filter) BPF_JUMP(__VA_ARGS__); \
     __filter->len++;                                                    \
     if (__filter->len >= BPFSIZE) {                                     \
-      errx(1, "BADBPF: BPF code using too much space.");                \
+      errx(1, "BPF code using too much space.");                        \
     }                                                                   \
   } while(0);
 
@@ -79,18 +80,13 @@
 // Tracking labels in BPF code
 // -------------------------------------------------------------------
 // In BPF, you can only jump downwards.  At the callsite, we store the
-// current code position into a callsite struct with the label's name.
+// current code position into a callsites struct with the label's name.
 // At the jump target where the label is declared, we retroactively
-// fill in the JT, JF or K values of the callsite instruction.
+// fill in the JT, JF or K values in the callsites.
 //
 // A well-optimizing compiler will optimize away most of the relevant
-// code, as long as the jumps is always skipping the same number of
+// code, as long as the jumps are always skipping the same number of
 // instructions.
-//
-// It's a known limitation that there can be only one callsite for
-// each label.  If you need more, use multiple labels instead.
-//
-// TODO(gnoack): Support multiple callers.
 #define _MAX_CALLSITES 10
 
 typedef struct {
@@ -111,11 +107,11 @@ typedef struct {
   callsites __##name##_callsites = { .count = 0 };
 
 #define TO_GENERIC(name, type)                                          \
-  (__##name##_callsites.callsite[__##name##_callsites.count++] = (callsite) { \
-    .ip = __filter->len,                                                \
-      .argtype = type,                                                  \
-      },                                                                \
-    0)
+  (__##name##_callsites.callsite[__##name##_callsites.count++] =        \
+   (callsite) { .ip = __filter->len, .argtype = type, },                \
+   __##name##_callsites.count > _MAX_CALLSITES ?                        \
+   errx(1, "BADBPF: Too many callsites for " #name) : 0,                \
+   0)
 
 #define TO(name) TO_GENERIC(name, K)
 #define THEN_TO(name) TO_GENERIC(name, JT)
