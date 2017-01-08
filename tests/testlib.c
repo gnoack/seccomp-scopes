@@ -138,6 +138,15 @@ void do_expect_crash(const char* name, const char* promises, test_proc proc) {
   fork_pledge_wait(name, promises, proc, expect_crash_status);
 }
 
+void do_expect(bool value, const char* msg) {
+  if (value) {
+    printf("%s: " OK "\n", msg);
+  } else {
+    char* fullmsg = NULL;
+    errx(1, "%s: %s", msg, FAIL);
+  }
+}
+
 void init_test(int argc, char* argv[]) {
   if (argc > 0) {
     argv0 = argv[0];
