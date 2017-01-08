@@ -8,6 +8,7 @@
 // that word, all these checks have disappeared.
 
 #include <err.h>
+#include <stddef.h>
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 
@@ -90,6 +91,8 @@
 // each label.  If you need more, use multiple labels instead.
 //
 // TODO(gnoack): Support multiple callers.
+#define _MAX_CALLSITES 10
+
 typedef struct {
   int ip;
   enum {
@@ -99,24 +102,29 @@ typedef struct {
   } argtype;
 } callsite;
 
+typedef struct {
+  callsite callsite[_MAX_CALLSITES];
+  int count;
+} callsites;
+
 #define DECLARELABEL(name)                                              \
-  callsite __##name##_callsite = { .ip = -1, .argtype = -1 };
+  callsites __##name##_callsites = { .count = 0 };
 
 #define TO_GENERIC(name, type)                                          \
-  (__##name##_callsite.ip != -1 ?                                       \
-   errx(1, "BADBPF: Jumping twice to " #name ".") : 0,                  \
-   __##name##_callsite.ip = __filter->len,                              \
-   __##name##_callsite.argtype = type,                                  \
-   0)
+  (__##name##_callsites.callsite[__##name##_callsites.count++] = (callsite) { \
+    .ip = __filter->len,                                                \
+      .argtype = type,                                                  \
+      },                                                                \
+    0)
 
 #define TO(name) TO_GENERIC(name, K)
 #define THEN_TO(name) TO_GENERIC(name, JT)
 #define ELSE_TO(name) TO_GENERIC(name, JF)
 
 #define LABEL(name)                                                     \
-  if (__##name##_callsite.ip != -1) {                                   \
-    int csip = __##name##_callsite.ip;                                  \
-    switch (__##name##_callsite.argtype) {                              \
+  for (int i=0; i<__##name##_callsites.count; i++) {                    \
+    int csip = __##name##_callsites.callsite[i].ip;                     \
+    switch (__##name##_callsites.callsite[i].argtype) {                 \
     case K:                                                             \
       __code[csip].k = __filter->len - csip - 1;                        \
       break;                                                            \
