@@ -163,16 +163,15 @@ static void append_inet_filter(unsigned int scopes, struct sock_fprog* prog) {
     // and type == SOCK_STREAM || type == SOCK_DGRAM
     //     and type may be or'd with SOCK_NONBLOCK, SOCK_CLOEXEC
     _JEQ(__NR_socket, 0, ELSE_TO(not_socket));  // if (nr != __NR_socket) goto not_socket
-    _LD_ARG(0);  // domain
+    _LD_ARG(0);  // socket() domain
     _JEQ(AF_INET,  1, 0);                     // if (domain==AF_INET ||
     _JEQ(AF_INET6, 0, ELSE_TO(not_socket));   //     domain==AF_INET6) {
-    _LD_ARG(1);  // type, TODO: extra flags
+    _LD_ARG(1);  // socket() type, TODO: extra flags
     _RET_EQ(SOCK_STREAM,    SECCOMP_RET_ALLOW);
     _RET_EQ(SOCK_DGRAM,     SECCOMP_RET_ALLOW);
     _LD_NR();
-    // exit:
-    LABEL(not_socket);
 
+    LABEL(not_socket);
     _RET_EQ(__NR_accept,    SECCOMP_RET_ALLOW);
     // accept(socket, *address, *address_len)
 
@@ -317,19 +316,21 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   // Construct the filter
   DECLARELABEL(checkother);
   DECLARELABEL(cleanup);
-  DECLARELABEL(entry);
+  DECLARELABEL(check_flags_argument);
   DECLARELABEL(handle_open_and_creat);
   BPFINTO(prog) {
+    // For openat, take 'flags' value from arg 2.
     _JEQ(__NR_openat, 0, ELSE_TO(handle_open_and_creat));
     _LD_ARG(2);  // acc := flags (arg 2)
-    _JMP(TO(entry));
+    _JMP(TO(check_flags_argument));
 
     LABEL(handle_open_and_creat);
+    // For open and creat, take 'flags' value from arg 1.
     _JEQ(__NR_open, 1, 0);
     _JEQ(__NR_creat, 0, ELSE_TO(cleanup));
     _LD_ARG(1);  // acc := flags (arg 1)
 
-    LABEL(entry);
+    LABEL(check_flags_argument);
     _SET_X_TO_A();  // store X := flags
     // acc := flags & O_ACCMODE
     _AND(O_ACCMODE);
@@ -338,12 +339,12 @@ static void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
     _JEQ((may_write ? O_WRONLY : O_ACCMODE+1), THEN_TO(checkother), 0);  // jeq wronly checkother
     _JEQ((may_rdwr  ? O_RDWR   : O_ACCMODE+1), THEN_TO(checkother), ELSE_TO(cleanup));  // jne rdwr   cleanup
 
-    LABEL(checkother);
+    LABEL(checkother);  // check the other flag bits
     // if ((flags | permitted) == permitted) return SECCOMP_RET_ALLOW;
     _SET_A_TO_X();  // flags
     _OR(permitted_open_flags);
-    _JEQ(permitted_open_flags, 0, ELSE_TO(cleanup));  // skip 1 if not equal
-    _RET(SECCOMP_RET_ALLOW);
+    _RET_EQ(permitted_open_flags, SECCOMP_RET_ALLOW);
+
     LABEL(cleanup);
     _LD_NR();
   }
