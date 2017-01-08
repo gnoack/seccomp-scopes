@@ -18,7 +18,7 @@ void* (*my_calloc)(size_t, size_t) = calloc;
 
 void test_alloc_and_free() {
   // Note: Using my own pointer to calloc.  Without this, the compiler
-  // notices that this code is essentially a noop and optimized both
+  // notices that this code is essentially a noop and optimizes both
   // the malloc and the free away, rendering this test useless in -O1.
   void* x = my_calloc(2000, 1024 * 20);
   free(x);
