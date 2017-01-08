@@ -1,9 +1,11 @@
 *.o
+*.so
 *~
 \#*#
 .*
 tests/inet
 tests/stdio
 tests/paths
+tests/bpfhelper
 tests/.throwaway-test-output
 __pycache__
