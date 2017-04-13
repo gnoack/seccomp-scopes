@@ -212,9 +212,12 @@ static void append_inet_filter(unsigned int scopes, struct sock_fprog* prog) {
     _RET_EQ(__NR_sendmsg,   SECCOMP_RET_ALLOW);
     // sendmsg(socket, *msg, flags)
 
+    _RET_EQ(__NR_sendmmsg,  SECCOMP_RET_ALLOW);
+    // sendmmsg(socket, *msgvec, vlen, flags) (multiplexed sendmsg)
+
     // socketcall(2) is not used any more in modern glibc versions.
 
-    // TODO: sendmmsg, setsockopt, getsockopt, socketpair, getpeername
+    // TODO: setsockopt, getsockopt, socketpair, getpeername
   }
 };
 
