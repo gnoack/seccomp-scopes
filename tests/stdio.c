@@ -1,8 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <sys/sendfile.h>
 #include <sys/time.h>
 #include <time.h>
+#include <unistd.h>
 #include <err.h>
 
 #include "pledge.h"
@@ -45,6 +47,11 @@ void test_clock_gettime() {
   }
 }
 
+void test_sendfile() {
+  ssize_t result = sendfile(STDOUT_FILENO, STDIN_FILENO, NULL, 0);
+  // result doesn't matter much to check that the call is filtered.
+}
+
 int main(int argc, char* argv[]) {
   init_test(argc, argv);
 
@@ -56,6 +63,9 @@ int main(int argc, char* argv[]) {
 
   expect_ok("stdio", test_madvise);
   expect_crash("", test_madvise);
+
+  expect_ok("stdio", test_sendfile);
+  expect_crash("", test_sendfile);
 
   // Gettimeofday is permitted.
   // This is not actually entering kernel mode on x86-64,
