@@ -2,7 +2,7 @@
 LDFLAGS= -lc -lgcc -lbsd
 CFLAGS= -fPIC -g -O1
 
-PLEDGE_OBJECTS = pledge.o pledge_dns.o pledge_inet.o
+PLEDGE_OBJECTS = pledge.o pledge_dns.o pledge_inet.o pledge_path.o pledge_stdio.o
 
 pledge.so: $(PLEDGE_OBJECTS)
 	$(LD) -shared -o $@ $^

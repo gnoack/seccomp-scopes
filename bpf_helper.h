@@ -8,7 +8,7 @@
 // that word, all these checks have disappeared.
 
 #include <err.h>
-#include <stddef.h>
+#include <stddef.h>  /* for offsetof */
 #include <linux/filter.h>
 #include <linux/seccomp.h>
 
