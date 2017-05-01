@@ -8,4 +8,5 @@ tests/stdio
 tests/paths
 tests/bpfhelper
 tests/.throwaway-test-output
+examples/cat
 __pycache__
