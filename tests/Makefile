@@ -2,7 +2,7 @@
 LDFLAGS= -lc -lgcc -lbsd
 CFLAGS= -fPIC -g -O1
 
-LIBS = ../pledge.o testlib.o
+LIBS = ../pledge.so testlib.o
 CFLAGS += -I..
 
 bpfhelper: bpfhelper.o $(LIBS)

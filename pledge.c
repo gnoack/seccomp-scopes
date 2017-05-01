@@ -25,6 +25,8 @@
 #include <unistd.h>
 
 #include "bpf_helper.h"
+#include "pledge_internal.h"
+#include "pledge_dns.h"
 
 
 #if defined(__i386__)
@@ -61,15 +63,6 @@ static void append_filter_suffix(struct sock_fprog* prog) {
     _RET(SECCOMP_RET_TRAP);
   }
 };
-
-
-/* Flags for the individual promise scopes. */
-#define SCOPE_STDIO 0x00000001
-#define SCOPE_RPATH 0x00000002
-#define SCOPE_WPATH 0x00000004
-#define SCOPE_CPATH 0x00000008
-#define SCOPE_DPATH 0x00000010
-#define SCOPE_INET  0x00000020
 
 
 static void append_stdio_filter(unsigned int scopes, struct sock_fprog* prog) {
@@ -364,6 +357,7 @@ static void fill_filter(unsigned int scopes, struct sock_fprog* prog) {
   append_cpath_filter(scopes, prog);
   append_dpath_filter(scopes, prog);
   append_inet_filter(scopes, prog);
+  append_dns_filter(scopes, prog);
 
   append_filter_suffix(prog);
 }
@@ -393,6 +387,8 @@ static int parse_promises(const char* promises, unsigned int* scope_flags) {
       flags |= SCOPE_DPATH;
     } else if (!strcmp(item, "inet")) {
       flags |= SCOPE_INET;
+    } else if (!strcmp(item, "dns_experimental")) {
+      flags |= SCOPE_DNS;
     } else {
       errno = EINVAL;
       free(promises_copy);
