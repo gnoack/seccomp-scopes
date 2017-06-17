@@ -23,7 +23,10 @@ void test_fopen_file_writing() {
 }
 
 void test_fopen_file_reading() {
-  FILE* f = fopen("example-file", "r");
+  FILE* f = fopen("/etc/resolv.conf", "r");
+  if (!f) {
+    errx(1, "Couldn't open /etc/resolv.conf (assumed to exist for testing)");
+  }
   char buf[100];
   do {
     size_t size = fread(buf, sizeof(buf), 1, f);
@@ -35,7 +38,7 @@ void test_fopen_file_reading() {
 }
 
 void test_open_file_reading() {
-  int fd = open("example-file", O_RDONLY);
+  int fd = open("/etc/resolv.conf", O_RDONLY);
   if (fd == -1) {
     puts("Error opening file for read: BROKEN");
   }
