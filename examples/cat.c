@@ -18,7 +18,11 @@ int main(int argc, char* argv[]) {
 
   // Open input files.
   for (int i=0; i<argc; i++) {
-    inputs[i] = fopen(argv[i+1], "r");
+    FILE* f = fopen(argv[i+1], "r");
+    if (!f) {
+      errx(1, "Failed to open file `%s'", argv[i+1]);
+    }
+    inputs[i] = f;
   }
 
   // No new file descriptors any more.
