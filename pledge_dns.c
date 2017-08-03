@@ -48,7 +48,9 @@ void append_dns_filter(unsigned int scopes, struct sock_fprog* prog) {
     // /dev/urandom
     // /etc/hosts - this too, but why open it every time?!
     _RET_EQ(__NR_open, SECCOMP_RET_ALLOW);
+#ifdef __NR_fstat64
     _RET_EQ(__NR_fstat64, SECCOMP_RET_ALLOW);
+#endif  // __NR_fstat64
     _RET_EQ(__NR_read, SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_close, SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_getpid, SECCOMP_RET_ALLOW);
@@ -57,7 +59,9 @@ void append_dns_filter(unsigned int scopes, struct sock_fprog* prog) {
     _RET_EQ(__NR_setsockopt, SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_getsockname,  SECCOMP_RET_ALLOW);
+#ifdef __NR_geteuid32
     _RET_EQ(__NR_geteuid32,  SECCOMP_RET_ALLOW);
+#endif  // __NR_geteuid32
     _RET_EQ(__NR_ppoll,  SECCOMP_RET_ALLOW);
   }
 }
