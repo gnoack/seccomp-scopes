@@ -3,9 +3,9 @@
 #include <linux/audit.h>  /* ARCH_NR */
 
 #include <asm/unistd.h>  /* syscall numbers */
-#include <bsd/stdlib.h>  /* reallocarray */
 
 #include <errno.h>  /* ERRNO */
+#include <malloc.h>
 #include <string.h>  /* stddup, strcmp, strtok_r */
 
 #include "bpf_helper.h"

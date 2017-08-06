@@ -1,6 +1,6 @@
 #include <sys/mman.h>  /* PROT_* flags */
 
-#include <asm/unistd.h>  /* syscall numbers */
+#include <sys/syscall.h>  /* syscall numbers */
 
 #include "bpf_helper.h"
 #include "pledge_stdio.h"
