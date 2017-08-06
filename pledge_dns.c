@@ -63,5 +63,8 @@ void append_dns_filter(unsigned int scopes, struct sock_fprog* prog) {
     _RET_EQ(__NR_geteuid32,  SECCOMP_RET_ALLOW);
 #endif  // __NR_geteuid32
     _RET_EQ(__NR_ppoll,  SECCOMP_RET_ALLOW);
+
+    // musl specifics.
+    _RET_EQ(__NR_fcntl64, SECCOMP_RET_ALLOW);
   }
 }

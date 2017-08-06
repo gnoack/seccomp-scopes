@@ -94,7 +94,8 @@ void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   // We need to calculate the permitted_open_flags ahead of time.
   // permitted_open_flags includes O_ACCMODE, because that was checked
   // before already.
-  int permitted_open_flags = O_ACCMODE;
+  // O_LARGEFILE is set by default on musl.
+  int permitted_open_flags = O_ACCMODE | O_LARGEFILE;
   if (may_write) {
     permitted_open_flags |= O_TRUNC | O_APPEND;
   }

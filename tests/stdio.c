@@ -71,7 +71,9 @@ int main(int argc, char* argv[]) {
   // This is not actually entering kernel mode on x86-64,
   // so we can't catch it there anyway and also shouldn't
   // make a difference between this and other architectures.
-  expect_ok("", test_gettimeofday);
+  // TODO: gettimeofday() calls clock_gettime() on musl,
+  // so this is incompatible between libcs.
+  // expect_ok("", test_gettimeofday);
 
   // TODO: Above reasoning should probably apply here too (see vdso(7)).
   expect_ok("stdio", test_clock_gettime);

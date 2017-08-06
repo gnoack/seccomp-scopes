@@ -24,7 +24,9 @@ void append_stdio_filter(unsigned int scopes, struct sock_fprog* prog) {
     _RET_EQ(__NR_pwrite64,       SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_pwritev,        SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_pwritev2,       SECCOMP_RET_ALLOW);
-    _RET_EQ(__NR_sendfile,       SECCOMP_RET_ALLOW);  // data copy between fds
+    // Copying data between fds.
+    _RET_EQ(__NR_sendfile,       SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_sendfile64,     SECCOMP_RET_ALLOW);
     // Stat
     _RET_EQ(__NR_fstat,          SECCOMP_RET_ALLOW);
 #ifdef __NR_fstat64
