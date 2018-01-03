@@ -67,15 +67,12 @@ int main(int argc, char* argv[]) {
   expect_ok("stdio", test_sendfile);
   expect_crash("", test_sendfile);
 
-  // Gettimeofday is permitted.
-  // This is not actually entering kernel mode on x86-64,
-  // so we can't catch it there anyway and also shouldn't
-  // make a difference between this and other architectures.
-  // TODO: gettimeofday() calls clock_gettime() on musl,
-  // so this is incompatible between libcs.
-  // expect_ok("", test_gettimeofday);
-
-  // TODO: Above reasoning should probably apply here too (see vdso(7)).
+  // Getting the time is always permitted.
+  // Different ways to get the time are used by different libcs
+  // and the gettimeofday() syscall is going through vdso on AMD64.
+  // For consisency, getting the time is always permitted, even
+  // without pledged scope.
+  expect_ok("", test_gettimeofday);
   expect_ok("stdio", test_clock_gettime);
-  expect_crash("", test_clock_gettime);
+  expect_ok("", test_clock_gettime);
 }

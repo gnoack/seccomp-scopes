@@ -38,7 +38,6 @@ void append_dns_filter(unsigned int scopes, struct sock_fprog* prog) {
     _RET_EQ(__NR_close, SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_fcntl64, SECCOMP_RET_ALLOW);
 
-    _RET_EQ(__NR_clock_gettime,  SECCOMP_RET_ALLOW);
     // TODO: socket() permission is too broad. (used for DNS requests)
     _RET_EQ(__NR_socket, SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_poll, SECCOMP_RET_ALLOW);

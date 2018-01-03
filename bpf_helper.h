@@ -13,7 +13,7 @@
 #include <linux/seccomp.h>
 
 // TODO(gnoack): Support bpf filters of arbitrary size.
-#define BPFSIZE 100
+#define BPFSIZE 256
 
 // TODO(gnoack): This should ideally be checked at compile time.
 #define _BPF_STMT(...) do {                                             \
