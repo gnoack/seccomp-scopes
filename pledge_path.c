@@ -45,6 +45,8 @@ void append_cpath_filter(unsigned int scopes, struct sock_fprog* prog) {
     _RET_EQ(__NR_unlinkat,  SECCOMP_RET_ALLOW);
     // Note: ioctl is used for fopen in musl to get tty windowsize
     // and to automatically enable buffering.
+    // TODO: Move this into its own function and later support the
+    // pledge 'tty' scope.
     _RET_EQ(__NR_ioctl,     SECCOMP_RET_ERRNO+EPERM);
   }
 }
