@@ -93,8 +93,11 @@ static int parse_promises(const char* promises, unsigned int* scope_flags) {
       flags |= SCOPE_DPATH;
     } else if (!strcmp(item, "inet")) {
       flags |= SCOPE_INET;
+#ifndef __GLIBC__
     } else if (!strcmp(item, "dns_experimental")) {
+      // DNS support is not supported on Glibc.
       flags |= SCOPE_DNS;
+#endif // not __GLIBC__
     } else {
       errno = EINVAL;
       free(promises_copy);

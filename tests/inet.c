@@ -34,7 +34,10 @@ int main(int argc, char* argv[]) {
   // socket() with inet permission with raw socket crashes
   expect_crash("stdio inet", test_inetraw);
 
+#ifndef __GLIBC__
+  // DNS scope is not supported on Glibc, NSS is too unpredictable.
   expect_ok("inet dns_experimental", test_gethostbyname);
+#endif
   // inet alone is not enough for gethostbyname().
   expect_crash("inet", test_gethostbyname);
 }
