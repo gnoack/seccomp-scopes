@@ -1,4 +1,6 @@
+#include <sys/stat.h>
 #include <sys/types.h>
+#include <errno.h>
 #include <fcntl.h>  /* open() flags */
 
 #include <stdbool.h>  /* bool */
@@ -8,6 +10,9 @@
 #include "bpf_helper.h"
 #include "pledge_path.h"
 #include "pledge_internal.h"
+
+// TODO: Find how to propertly and libc-compatibly include the definition of O_LARGEFILE
+#define O_LARGEFILE 0400000
 
 // Opening paths read-only
 void append_rpath_filter(unsigned int scopes, struct sock_fprog* prog) {
@@ -38,6 +43,9 @@ void append_cpath_filter(unsigned int scopes, struct sock_fprog* prog) {
     _RET_EQ(__NR_symlink,   SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_unlink,    SECCOMP_RET_ALLOW);
     _RET_EQ(__NR_unlinkat,  SECCOMP_RET_ALLOW);
+    // Note: ioctl is used for fopen in musl to get tty windowsize
+    // and to automatically enable buffering.
+    _RET_EQ(__NR_ioctl,     SECCOMP_RET_ERRNO+EPERM);
   }
 }
 
@@ -95,7 +103,11 @@ void append_open_filter(unsigned int scopes, struct sock_fprog* prog) {
   // permitted_open_flags includes O_ACCMODE, because that was checked
   // before already.
   // O_LARGEFILE is set by default on musl.
-  int permitted_open_flags = O_ACCMODE | O_LARGEFILE;
+  int permitted_open_flags = O_ACCMODE;
+#ifdef O_LARGEFILE
+  permitted_open_flags |= O_LARGEFILE;
+#endif
+
   if (may_write) {
     permitted_open_flags |= O_TRUNC | O_APPEND;
   }
