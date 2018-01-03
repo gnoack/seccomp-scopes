@@ -66,5 +66,8 @@ void append_dns_filter(unsigned int scopes, struct sock_fprog* prog) {
 
     // musl specifics.
     _RET_EQ(__NR_fcntl64, SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_readv, SECCOMP_RET_ALLOW);
+    _RET_EQ(__NR_socket, SECCOMP_RET_ALLOW);  // TODO: This is too broad.
+    _RET_EQ(__NR_poll, SECCOMP_RET_ALLOW);
   }
 }
