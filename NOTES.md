@@ -9,3 +9,5 @@ Run the test with test name as first and pledge string as 2nd arg, such as:
 Syscall number is loaded into r7 for syscall.
 
     (gdb) info registers
+
+Compare with /usr/include/asm/unistd-common.h
