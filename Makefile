@@ -1,7 +1,7 @@
 ######################################################################
 # Compiler flags
 ######################################################################
-LDFLAGS= -lc -lgcc
+LDFLAGS= -static -lc -lgcc
 CFLAGS= -fPIC -g -O1 -I.
 
 ######################################################################
@@ -12,15 +12,18 @@ LIBRARY_OBJECTS = pledge.o pledge_dns.o pledge_inet.o pledge_path.o pledge_stdio
 pledge.so: $(LIBRARY_OBJECTS)
 	$(LD) -shared -o $@ $^
 
+pledge.a: $(LIBRARY_OBJECTS)
+	$(AR) -r $@ $^
+
 ######################################################################
 # Tests
 ######################################################################
 TEST_NAMES := inet paths stdio bpfhelper
 TEST_BINARIES := $(TEST_NAMES:%=tests/%)
-TEST_LIBS := pledge.so tests/testlib.o
+TEST_LIBS := tests/testlib.o pledge.a
 
 tests/%: tests/%.o $(TEST_LIBS)
-	$(CC) -o $@ $(LDFLAGS) -Wl,-rpath=. $^
+	$(CC) -o $@ $(LDFLAGS) $^
 
 badbpftest: pledge.so tests/checkopt.sh
 	tests/checkopt.sh pledge.so
@@ -40,12 +43,12 @@ EXAMPLE_LIBS := pledge.so
 example: $(EXAMPLE_BINARIES)
 
 examples/%: examples/%.o $(EXAMPLE_LIBS)
-	$(CC) -o $@ $(LDFLAGS) -Wl,-rpath=. $^
+	$(CC) -o $@ $(LDFLAGS) $^
 
 ######################################################################
 # Clean up
 ######################################################################
 clean:
-	rm -f *.o *.so *~ */*.o */*.so */*~ $(TEST_BINARIES) $(EXAMPLE_BINARIES)
+	rm -f *.o *.so *.a *~ */*.o */*.so */*~ $(TEST_BINARIES) $(EXAMPLE_BINARIES)
 
 .PHONY: clean test badbpftest
