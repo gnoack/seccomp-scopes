@@ -116,7 +116,6 @@ static int parse_promises(const char* promises, unsigned int* scope_flags) {
 
 
 int pledge(const char* promises, const char* paths[]) {
-  int retval = 0;
   struct sock_filter filter_code[BPFSIZE];
   struct sock_fprog prog = {
     .len = 0,
@@ -128,32 +127,26 @@ int pledge(const char* promises, const char* paths[]) {
     // the argument purely exists for OpenBSD compatibility
     // and in the hope this will be fixed in the kernel. :)
     errno = E2BIG;
-    goto error;
+    return -1;
   }
 
   unsigned int scopes = 0;
   if (parse_promises(promises, &scopes) == -1) {
     errno = EINVAL;
-    goto error;
+    return -1;
   }
   fill_filter(scopes, &prog);
 
   // Same privilege restrictions should apply to child processes.
   if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
     errno = EPERM;  // TODO: Find better error code.
-    goto error;
+    return -1;
   }
   // Enable the filter.
   if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
     errno = EPERM;
-    goto error;
+    return -1;
   }
 
-  goto success;
-
- error:
-  retval = -1;
-
- success:
-  return retval;
+  return 0;
 }
