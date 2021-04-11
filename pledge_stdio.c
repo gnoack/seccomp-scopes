@@ -34,6 +34,9 @@ void append_stdio_filter(unsigned int scopes, struct sock_fprog* prog) {
 #ifdef __NR_fstat64
     _RET_EQ(__NR_fstat64,        SECCOMP_RET_ALLOW);
 #endif  // __NR_fstat64
+#ifdef __NR_newfstatat
+    _RET_EQ(__NR_newfstatat,     SECCOMP_RET_ALLOW);
+#endif  // __NR_newfstatat
     // Closing file descriptors
     _RET_EQ(__NR_close,          SECCOMP_RET_ALLOW);
   }
