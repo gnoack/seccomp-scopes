@@ -85,8 +85,6 @@ static void fork_pledge_wait(const char* name,
     errx(1, "Could not fork");
   } else if (pid == 0) {
     // Child
-    /* printf("Child PID %d\n", getpid()); */
-    /* sleep(10); */
     pledge_run(name, proc, promises);
     exit(0);
   } else {
