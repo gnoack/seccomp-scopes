@@ -11,7 +11,7 @@
 #include "pledge_path.h"
 #include "pledge_internal.h"
 
-// TODO: Find how to propertly and libc-compatibly include the definition of O_LARGEFILE
+// TODO: Find how to properly and libc-compatibly include the definition of O_LARGEFILE
 #define O_LARGEFILE 0400000
 
 // Opening paths read-only
