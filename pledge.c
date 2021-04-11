@@ -131,19 +131,20 @@ int pledge(const char* promises, const char* paths[]) {
   }
 
   unsigned int scopes = 0;
-  if (parse_promises(promises, &scopes) == -1) {
+  if (parse_promises(promises, &scopes) < 0) {
     errno = EINVAL;
     return -1;
   }
   fill_filter(scopes, &prog);
 
   // Same privilege restrictions should apply to child processes.
-  if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) == -1) {
+  if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) < 0) {
     errno = EPERM;  // TODO: Find better error code.
     return -1;
   }
   // Enable the filter.
-  if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) == -1) {
+  // TODO: Use seccomp(2).
+  if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog) < 0) {
     errno = EPERM;
     return -1;
   }
